@@ -1,0 +1,55 @@
+# ---------- Segredos ----------
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ---------- Java / Maven ----------
+target/
+build/
+*.class
+*.jar
+*.war
+*.ear
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+dependency-reduced-pom.xml
+hs_err_pid*
+replay_pid*
+
+# ---------- Node / Frontend ----------
+node_modules/
+dist/
+dist-ssr/
+build/
+.vite/
+coverage/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- IDEs ----------
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+!.vscode/extensions.json
+.settings/
+.project
+.classpath
+.factorypath
+*.swp
+*.swo
+nbproject/private/
+
+# ---------- Sistema operacional ----------
+.DS_Store
+Thumbs.db
+
+# ---------- Logs ----------
+*.log
+logs/
