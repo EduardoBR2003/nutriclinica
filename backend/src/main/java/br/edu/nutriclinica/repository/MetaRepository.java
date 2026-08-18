@@ -1,0 +1,13 @@
+package br.edu.nutriclinica.repository;
+
+import br.edu.nutriclinica.domain.Meta;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface MetaRepository extends JpaRepository<Meta, Long> {
+
+    List<Meta> findByAtendimentoId(Long atendimentoId);
+
+    void deleteByAtendimentoId(Long atendimentoId);
+}

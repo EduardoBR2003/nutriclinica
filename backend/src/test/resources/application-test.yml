@@ -1,5 +1,6 @@
-# Perfil de teste da Etapa 0: sem banco de dados.
-# Na Etapa 3 este perfil passa a usar Testcontainers (PostgreSQL 17).
+# Perfil de teste: contexto sobe sem banco (as exclusões abaixo desligam
+# DataSource, JPA e Flyway). Os testes de persistência com Testcontainers
+# (PostgreSQL 17) entram no bloco de testes da Etapa 3.
 spring:
   autoconfigure:
     exclude:
