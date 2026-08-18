@@ -66,10 +66,22 @@ public class GlobalExceptionHandler {
                 .body(ErroResponse.de("NAO_ENCONTRADO", excecao.getMessage()));
     }
 
-    @ExceptionHandler(TransicaoInvalidaException.class)
-    public ResponseEntity<ErroResponse> tratarTransicaoInvalida(TransicaoInvalidaException excecao) {
+    /**
+     * Cobre TransicaoInvalidaException, SemTermoConsentimentoException e as que
+     * vierem: o código específico viaja na exceção, e não há um handler novo a
+     * cada situação de conflito.
+     */
+    @ExceptionHandler(ConflitoException.class)
+    public ResponseEntity<ErroResponse> tratarConflito(ConflitoException excecao) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ErroResponse.de("TRANSICAO_INVALIDA", excecao.getMessage()));
+                .body(ErroResponse.de(excecao.getCodigo(), excecao.getMessage()));
+    }
+
+    /** Validação de regra de domínio, no mesmo formato da validação de campo. */
+    @ExceptionHandler(ValidacaoException.class)
+    public ResponseEntity<ErroResponse> tratarValidacaoDeDominio(ValidacaoException excecao) {
+        return ResponseEntity.unprocessableEntity()
+                .body(ErroResponse.de("VALIDACAO", excecao.getMessage(), excecao.getCampos()));
     }
 
     /** Rede de segurança: detalhe do erro fica no log, nunca na resposta. */

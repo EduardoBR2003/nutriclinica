@@ -2,12 +2,13 @@ package br.edu.nutriclinica.exception;
 
 /**
  * A operação não é válida no estado atual do atendimento — por exemplo, editar
- * uma seção em EM_REVISAO ou abrir atendimento para paciente sem termo LGPD.
- * Vira 409 / TRANSICAO_INVALIDA.
+ * uma seção em EM_REVISAO. Vira 409 / TRANSICAO_INVALIDA.
  */
-public class TransicaoInvalidaException extends RuntimeException {
+public class TransicaoInvalidaException extends ConflitoException {
+
+    public static final String CODIGO = "TRANSICAO_INVALIDA";
 
     public TransicaoInvalidaException(String mensagem) {
-        super(mensagem);
+        super(CODIGO, mensagem);
     }
 }

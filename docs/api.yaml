@@ -199,13 +199,15 @@ paths:
     get:
       tags: [Pacientes]
       summary: Detalha paciente
+      description: |
+        Paciente fora do escopo do usuário responde 404, não 403: confirmar a
+        existência de um prontuário alheio já seria vazamento de dado sensível.
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Paciente' }
-        '403': { $ref: '#/components/responses/Proibido' }
         '404': { $ref: '#/components/responses/NaoEncontrado' }
     put:
       tags: [Pacientes]
@@ -286,7 +288,13 @@ paths:
     post:
       tags: [Atendimentos]
       summary: Abre um novo atendimento
-      description: Falha com 409 se o paciente não tiver termo LGPD registrado.
+      description: |
+        O estagiário é sempre o usuário autenticado; o corpo não o informa.
+        Falha com 409 `SEM_TERMO_CONSENTIMENTO` se o paciente não tiver termo
+        LGPD com aceite, e com 422 se o supervisor informado não tiver perfil
+        SUPERVISOR ou não orientar o estagiário.
+        O número de prontuário é gerado pelo servidor no formato AAAA-NNNNNN,
+        sequencial dentro do ano da data da consulta.
       requestBody:
         required: true
         content:
@@ -304,20 +312,25 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Atendimento' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
         '409': { $ref: '#/components/responses/Conflito' }
+        '422': { $ref: '#/components/responses/ErroValidacao' }
 
   /api/atendimentos/{id}:
     parameters: [{ $ref: '#/components/parameters/Id' }]
     get:
       tags: [Atendimentos]
       summary: Retorna o prontuário completo
+      description: |
+        Atendimento fora do escopo do usuário responde 404, não 403 — mesma
+        razão de /api/pacientes/{id}.
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AtendimentoCompleto' }
-        '403': { $ref: '#/components/responses/Proibido' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
 
   /api/atendimentos/{id}/submeter:
     parameters: [{ $ref: '#/components/parameters/Id' }]

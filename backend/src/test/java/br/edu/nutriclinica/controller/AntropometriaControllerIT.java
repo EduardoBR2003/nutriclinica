@@ -8,41 +8,22 @@ import br.edu.nutriclinica.domain.enums.Perfil;
 import br.edu.nutriclinica.domain.enums.Sexo;
 import br.edu.nutriclinica.domain.enums.StatusAtendimento;
 import br.edu.nutriclinica.repository.AntropometriaRepository;
-import br.edu.nutriclinica.repository.AtendimentoRepository;
-import br.edu.nutriclinica.repository.PacienteRepository;
-import br.edu.nutriclinica.repository.UsuarioRepository;
 import br.edu.nutriclinica.support.AbstractIntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
 import java.time.LocalDate;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** PATCH /api/atendimentos/{id}/antropometria sobre os usuários do V2__seed.sql. */
 class AntropometriaControllerIT extends AbstractIntegrationTest {
 
-    private static final String ESTAGIARIO = "estagiario@nutriclinica.edu.br";
-    private static final String SUPERVISOR = "supervisor@nutriclinica.edu.br";
-    private static final String SENHA = "senha123";
-
-    /** Mantém numero_prontuario único sem depender da ordem dos testes. */
-    private static final AtomicInteger SEQUENCIA = new AtomicInteger();
-
-    @Autowired
-    private UsuarioRepository usuarioRepository;
-    @Autowired
-    private PacienteRepository pacienteRepository;
-    @Autowired
-    private AtendimentoRepository atendimentoRepository;
     @Autowired
     private AntropometriaRepository antropometriaRepository;
 
@@ -222,19 +203,20 @@ class AntropometriaControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("estagiário não vê nem escreve em atendimento de outro: 403")
+    @DisplayName("atendimento de outro estagiário é indistinguível de inexistente: 404")
     void atendimentoDeOutroEstagiario() throws Exception {
-        Usuario outro = novoEstagiario();
+        Usuario outro = novoUsuario("Outro Estagiário", Perfil.ESTAGIARIO);
         Atendimento atendimento = novoAtendimento(
                 Sexo.MASCULINO, LocalDate.of(1990, 1, 1), LocalDate.of(2025, 1, 1),
                 StatusAtendimento.RASCUNHO, outro);
 
+        // 404 e não 403: um 403 confirmaria que esse prontuário existe.
         mockMvc.perform(patch("/api/atendimentos/{id}/antropometria", atendimento.getId())
                         .header("Authorization", "Bearer " + token(ESTAGIARIO))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"pesoKg\":80.00,\"alturaCm\":180.0}"))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.codigo").value("SEM_PERMISSAO"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.codigo").value("NAO_ENCONTRADO"));
     }
 
     @Test
@@ -320,8 +302,7 @@ class AntropometriaControllerIT extends AbstractIntegrationTest {
                                         LocalDate dataNascimento,
                                         LocalDate dataConsulta,
                                         StatusAtendimento status) {
-        return novoAtendimento(sexo, dataNascimento, dataConsulta, status,
-                usuarioPorEmail(ESTAGIARIO));
+        return novoAtendimento(sexo, dataNascimento, dataConsulta, status, usuarioPorEmail(ESTAGIARIO));
     }
 
     private Atendimento novoAtendimento(Sexo sexo,
@@ -329,48 +310,7 @@ class AntropometriaControllerIT extends AbstractIntegrationTest {
                                         LocalDate dataConsulta,
                                         StatusAtendimento status,
                                         Usuario estagiario) {
-        Usuario supervisor = usuarioPorEmail(SUPERVISOR);
-
-        Paciente paciente = new Paciente();
-        paciente.setNome("Paciente de Teste");
-        paciente.setDataNascimento(dataNascimento);
-        paciente.setSexo(sexo);
-        paciente.setCriadoPor(estagiario);
-        paciente = pacienteRepository.save(paciente);
-
-        Atendimento atendimento = new Atendimento();
-        atendimento.setNumeroProntuario("IT-" + SEQUENCIA.incrementAndGet() + "-" + System.nanoTime());
-        atendimento.setPaciente(paciente);
-        atendimento.setEstagiario(estagiario);
-        atendimento.setSupervisor(supervisor);
-        atendimento.setDataConsulta(dataConsulta);
-        atendimento.setStatus(status);
-        return atendimentoRepository.save(atendimento);
-    }
-
-    private Usuario novoEstagiario() {
-        Usuario usuario = new Usuario();
-        usuario.setNome("Outro Estagiário");
-        usuario.setEmail("outro-" + SEQUENCIA.incrementAndGet() + "@nutriclinica.edu.br");
-        // Nunca autentica neste teste; o hash só precisa satisfazer o NOT NULL.
-        usuario.setSenhaHash("$2a$10$ppghIu4XhjdMoMfpR.n5rOaOVhcgTyADMIjM3Yiymp9utFNtx8fM6");
-        usuario.setPerfil(Perfil.ESTAGIARIO);
-        usuario.setAtivo(true);
-        return usuarioRepository.save(usuario);
-    }
-
-    private Usuario usuarioPorEmail(String email) {
-        return usuarioRepository.findByEmail(email).orElseThrow();
-    }
-
-    private String token(String email) throws Exception {
-        String corpo = mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"senha\":\"" + SENHA + "\"}"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        JsonNode resposta = objectMapper.readTree(corpo);
-        return resposta.get("accessToken").asText();
+        Paciente paciente = novoPaciente("Paciente de Teste", sexo, dataNascimento, estagiario);
+        return novoAtendimento(paciente, estagiario, usuarioPorEmail(SUPERVISOR), dataConsulta, status);
     }
 }

@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.Optional;
 
 /**
  * Seção de antropometria do prontuário.
@@ -90,11 +91,25 @@ public class AntropometriaService {
         Usuario usuario = authService.usuarioLogado();
         Atendimento atendimento = atendimentoAcessoService.carregarParaLeitura(atendimentoId, usuario);
 
-        Antropometria antropometria = antropometriaRepository.findById(atendimentoId)
+        return buscarDoAtendimento(atendimento)
                 .orElseThrow(() -> NaoEncontradoException.de("Antropometria do atendimento", atendimentoId));
+    }
 
-        ResultadoAntropometrico resultado = calcular(atendimento, antropometria);
-        return AntropometriaResponse.de(antropometria, resultado.rcqElevada(), resultado.riscoCardiovascular());
+    /**
+     * Mesma leitura, a partir de um atendimento que o chamador já carregou com o
+     * escopo aplicado — é assim que o prontuário completo monta a seção sem
+     * repetir a consulta de acesso nem a regra de recálculo dos derivados.
+     *
+     * @return vazio se a seção ainda não foi preenchida
+     */
+    @Transactional(readOnly = true)
+    public Optional<AntropometriaResponse> buscarDoAtendimento(Atendimento atendimento) {
+        return antropometriaRepository.findById(atendimento.getId())
+                .map(antropometria -> {
+                    ResultadoAntropometrico resultado = calcular(atendimento, antropometria);
+                    return AntropometriaResponse.de(
+                            antropometria, resultado.rcqElevada(), resultado.riscoCardiovascular());
+                });
     }
 
     private ResultadoAntropometrico calcular(Atendimento atendimento, Antropometria antropometria) {
