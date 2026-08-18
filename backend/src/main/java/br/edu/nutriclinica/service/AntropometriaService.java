@@ -10,6 +10,7 @@ import br.edu.nutriclinica.dto.AntropometriaResponse;
 import br.edu.nutriclinica.dto.ResultadoAntropometrico;
 import br.edu.nutriclinica.exception.NaoEncontradoException;
 import br.edu.nutriclinica.repository.AntropometriaRepository;
+import br.edu.nutriclinica.service.secao.Merge;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,21 +28,24 @@ import java.util.Optional;
  * <p>Nenhum indicador derivado vem do cliente. {@link AntropometriaRequest} não
  * tem campo para eles, então o que chegar no corpo é descartado na
  * desserialização — o IMC gravado é sempre o que o servidor acabou de calcular.
+ *
+ * <p>É a única seção que não estende {@code SecaoSimplesService}: o salvamento
+ * dela não termina no merge, precisa do recálculo em cima do resultado dele.
  */
 @Service
 public class AntropometriaService {
 
     private final AntropometriaRepository antropometriaRepository;
-    private final AtendimentoAcessoService atendimentoAcessoService;
+    private final AtendimentoEditavelValidator atendimentoEditavelValidator;
     private final CalculoAntropometricoService calculoAntropometricoService;
     private final AuthService authService;
 
     public AntropometriaService(AntropometriaRepository antropometriaRepository,
-                                AtendimentoAcessoService atendimentoAcessoService,
+                                AtendimentoEditavelValidator atendimentoEditavelValidator,
                                 CalculoAntropometricoService calculoAntropometricoService,
                                 AuthService authService) {
         this.antropometriaRepository = antropometriaRepository;
-        this.atendimentoAcessoService = atendimentoAcessoService;
+        this.atendimentoEditavelValidator = atendimentoEditavelValidator;
         this.calculoAntropometricoService = calculoAntropometricoService;
         this.authService = authService;
     }
@@ -49,26 +53,30 @@ public class AntropometriaService {
     /**
      * Salva a seção e devolve os indicadores recalculados.
      *
-     * <p>O corpo representa a seção inteira: o que não vier é apagado. O PATCH é
-     * parcial em relação ao prontuário — é uma seção entre várias —, não em
-     * relação aos campos da própria seção.
+     * <p>O PATCH é parcial campo a campo: a medida ausente no corpo é mantida, a
+     * enviada como {@code null} é apagada.
+     *
+     * <p>Os derivados, porém, nunca são parciais — são recalculados do zero
+     * sobre o estado da seção <b>depois</b> do merge. É a única forma de o IMC
+     * continuar coerente quando um PATCH que só mandou o peso muda a conta que
+     * dependia da altura gravada antes.
      */
     @Transactional
     public AntropometriaResponse salvar(Long atendimentoId, AntropometriaRequest requisicao) {
         Usuario usuario = authService.usuarioLogado();
         Atendimento atendimento =
-                atendimentoAcessoService.carregarParaEscritaDoEstagiario(atendimentoId, usuario);
+                atendimentoEditavelValidator.exigirEditavel(atendimentoId, usuario);
 
         Antropometria antropometria = antropometriaRepository.findById(atendimentoId)
                 .orElseGet(() -> novaSecao(atendimento));
 
-        antropometria.setPesoKg(requisicao.pesoKg());
-        antropometria.setAlturaCm(requisicao.alturaCm());
-        antropometria.setCircCinturaCm(requisicao.circCinturaCm());
-        antropometria.setCircQuadrilCm(requisicao.circQuadrilCm());
-        antropometria.setPercentualGordura(requisicao.percentualGordura());
-        antropometria.setMassaMagraKg(requisicao.massaMagraKg());
-        antropometria.setAferidoEm(requisicao.aferidoEm());
+        Merge.aplicar(requisicao.pesoKg(), antropometria::setPesoKg);
+        Merge.aplicar(requisicao.alturaCm(), antropometria::setAlturaCm);
+        Merge.aplicar(requisicao.circCinturaCm(), antropometria::setCircCinturaCm);
+        Merge.aplicar(requisicao.circQuadrilCm(), antropometria::setCircQuadrilCm);
+        Merge.aplicar(requisicao.percentualGordura(), antropometria::setPercentualGordura);
+        Merge.aplicar(requisicao.massaMagraKg(), antropometria::setMassaMagraKg);
+        Merge.aplicar(requisicao.aferidoEm(), antropometria::setAferidoEm);
 
         ResultadoAntropometrico resultado = calcular(atendimento, antropometria);
 
@@ -89,7 +97,7 @@ public class AntropometriaService {
     @Transactional(readOnly = true)
     public AntropometriaResponse buscar(Long atendimentoId) {
         Usuario usuario = authService.usuarioLogado();
-        Atendimento atendimento = atendimentoAcessoService.carregarParaLeitura(atendimentoId, usuario);
+        Atendimento atendimento = atendimentoEditavelValidator.carregarParaLeitura(atendimentoId, usuario);
 
         return buscarDoAtendimento(atendimento)
                 .orElseThrow(() -> NaoEncontradoException.de("Antropometria do atendimento", atendimentoId));

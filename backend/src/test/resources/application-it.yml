@@ -6,6 +6,11 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+    properties:
+      hibernate:
+        # Habilita o contador de consultas usado por ProntuarioConsultasIT para
+        # provar que montar o prontuário não é N+1.
+        generate_statistics: true
 
   flyway:
     enabled: true

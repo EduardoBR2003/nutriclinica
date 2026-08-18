@@ -21,6 +21,7 @@
         <java.version>21</java.version>
         <springdoc.version>2.8.17</springdoc.version>
         <jjwt.version>0.12.7</jjwt.version>
+        <jackson-databind-nullable.version>0.2.6</jackson-databind-nullable.version>
     </properties>
 
     <dependencies>
@@ -62,6 +63,15 @@
             <artifactId>jjwt-jackson</artifactId>
             <version>${jjwt.version}</version>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- JsonNullable: distingue "campo ausente" de "campo enviado como null" no
+             corpo do PATCH. Sem isso o autosave por seção do frontend apagaria os
+             campos que a tela não enviou. -->
+        <dependency>
+            <groupId>org.openapitools</groupId>
+            <artifactId>jackson-databind-nullable</artifactId>
+            <version>${jackson-databind-nullable.version}</version>
         </dependency>
 
         <dependency>

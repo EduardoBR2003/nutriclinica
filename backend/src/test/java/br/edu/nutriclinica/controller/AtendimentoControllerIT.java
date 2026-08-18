@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.time.LocalDate;
 
@@ -19,6 +20,7 @@ import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -293,6 +295,48 @@ class AtendimentoControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("o prontuário completo traz as seções preenchidas e omite as vazias")
+    void prontuarioCompleto() throws Exception {
+        Usuario estagiario = usuarioPorEmail(ESTAGIARIO);
+        Paciente paciente = novoPaciente(estagiario);
+        Atendimento atendimento = novoAtendimento(paciente, estagiario, usuarioPorEmail(SUPERVISOR),
+                LocalDate.of(2025, 9, 1), StatusAtendimento.RASCUNHO);
+        String token = token(ESTAGIARIO);
+
+        preencher(patch("/api/atendimentos/{id}/queixa-principal", atendimento.getId()), token,
+                "{\"motivo\":\"Ganho de peso\",\"objetivoConsulta\":\"Reeducação alimentar\"}");
+        preencher(patch("/api/atendimentos/{id}/diagnostico", atendimento.getId()), token,
+                "{\"problema\":\"Ingestão energética excessiva\",\"etiologia\":\"Ultraprocessados\"}");
+        preencher(patch("/api/atendimentos/{id}/antropometria", atendimento.getId()), token,
+                "{\"pesoKg\":72.00,\"alturaCm\":170.0}");
+        preencher(put("/api/atendimentos/{id}/medicamentos", atendimento.getId()), token,
+                "[{\"tipo\":\"MEDICAMENTO\",\"nome\":\"Losartana\",\"dose\":\"50mg\"}]");
+        preencher(put("/api/atendimentos/{id}/recordatorio", atendimento.getId()), token,
+                "[{\"tipoRefeicao\":\"ALMOCO\",\"horario\":\"12:00\","
+                        + "\"itens\":[{\"alimento\":\"Arroz\"},{\"alimento\":\"Feijão\"}]}]");
+
+        mockMvc.perform(get("/api/atendimentos/{id}", atendimento.getId())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.queixaPrincipal.motivo").value("Ganho de peso"))
+                .andExpect(jsonPath("$.diagnostico.etiologia").value("Ultraprocessados"))
+                .andExpect(jsonPath("$.antropometria.imc").value(24.91))
+                .andExpect(jsonPath("$.medicamentos.length()").value(1))
+                .andExpect(jsonPath("$.medicamentos[0].nome").value("Losartana"))
+                .andExpect(jsonPath("$.recordatorio[0].itens.length()").value(2))
+                // Seção não preenchida não aparece — nem como null, nem como [].
+                .andExpect(jsonPath("$.historiaClinica").doesNotExist())
+                .andExpect(jsonPath("$.plano").doesNotExist())
+                .andExpect(jsonPath("$.exames").doesNotExist())
+                .andExpect(jsonPath("$.metas").doesNotExist())
+                .andExpect(jsonPath("$.secoesPreenchidas.length()").value(5))
+                .andExpect(jsonPath("$.secoesPreenchidas").value(hasItem("QUEIXA_PRINCIPAL")))
+                .andExpect(jsonPath("$.secoesPreenchidas").value(hasItem("MEDICAMENTOS")))
+                .andExpect(jsonPath("$.secoesPreenchidas").value(hasItem("RECORDATORIO")))
+                .andExpect(jsonPath("$.secoesPreenchidas").value(not(hasItem("PLANO"))));
+    }
+
+    @Test
     @DisplayName("filtros de status e pacienteId restringem a listagem")
     void filtros() throws Exception {
         Usuario estagiario = usuarioPorEmail(ESTAGIARIO);
@@ -331,6 +375,16 @@ class AtendimentoControllerIT extends AbstractIntegrationTest {
     // ------------------------------------------------------------------
     // Fixtures
     // ------------------------------------------------------------------
+
+    /** Preenche uma seção e exige 200 — o cenário do teste é o GET, não o PATCH. */
+    private void preencher(MockHttpServletRequestBuilder requisicao, String token, String corpo)
+            throws Exception {
+        mockMvc.perform(requisicao
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpo))
+                .andExpect(status().isOk());
+    }
 
     private Paciente pacienteComTermo() {
         Usuario estagiario = usuarioPorEmail(ESTAGIARIO);

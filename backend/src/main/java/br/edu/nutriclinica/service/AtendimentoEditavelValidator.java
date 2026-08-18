@@ -15,19 +15,24 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Porta de entrada das seções do prontuário: carrega o atendimento aplicando o
- * escopo de LGPD e a máquina de estados.
+ * Porta única de escrita no prontuário: carrega o atendimento aplicando o escopo
+ * de LGPD e a máquina de estados.
  *
- * <p>Existe para que cada seção nova (antropometria, exames, recordatório…) não
- * reimplemente essas duas regras — e para que elas vivam no serviço de domínio,
- * nunca só no frontend.
+ * <p>É a primeira linha de <b>todos</b> os endpoints de seção. Existe para que
+ * nenhuma seção reimplemente essas regras — e para que elas vivam no serviço de
+ * domínio, nunca só no frontend. Um {@code if} de status ou de dono dentro de um
+ * service de seção é sinal de que a regra escapou daqui.
+ *
+ * <p>Os três métodos são as três faces da mesma pergunta — quem pode o quê neste
+ * atendimento —, por isso moram juntos: leitura, escrita e a resposta que o
+ * frontend usa para habilitar o formulário.
  *
  * <p>O escopo é predicado da query, com o id do usuário como parâmetro: o banco
  * devolve o atendimento apenas se ele for visível, e nunca chega à aplicação um
  * prontuário que depois seria descartado em Java.
  */
 @Service
-public class AtendimentoAcessoService {
+public class AtendimentoEditavelValidator {
 
     /** Estados em que o estagiário ainda pode escrever no prontuário. */
     private static final Set<StatusAtendimento> STATUS_EDITAVEIS =
@@ -35,7 +40,7 @@ public class AtendimentoAcessoService {
 
     private final AtendimentoRepository atendimentoRepository;
 
-    public AtendimentoAcessoService(AtendimentoRepository atendimentoRepository) {
+    public AtendimentoEditavelValidator(AtendimentoRepository atendimentoRepository) {
         this.atendimentoRepository = atendimentoRepository;
     }
 
@@ -62,19 +67,25 @@ public class AtendimentoAcessoService {
     }
 
     /**
-     * Carrega o atendimento para escrita de uma seção do prontuário.
+     * Carrega o atendimento exigindo que ele esteja editável por este usuário.
      *
      * <p>Só o estagiário dono escreve, e só enquanto o prontuário está em
      * RASCUNHO ou DEVOLVIDO_PARA_CORRECAO. Em EM_REVISAO e APROVADO a seção é
      * somente leitura — regra inviolável do domínio.
      *
+     * <p>Escrever numa seção não muda o status: um prontuário em
+     * DEVOLVIDO_PARA_CORRECAO continua devolvido enquanto o estagiário corrige,
+     * e só volta à fila quando ele submete de novo.
+     *
      * <p>Aqui o 403 é legítimo: quem chegou até este ponto já enxerga o
      * atendimento, então recusar a escrita não revela nada de novo.
      *
-     * @throws TransicaoInvalidaException se o status atual não admite escrita
+     * @throws NaoEncontradoException se o atendimento está fora do escopo (404)
+     * @throws SemPermissaoException se o usuário não é o estagiário dono (403)
+     * @throws TransicaoInvalidaException se o status atual não admite escrita (409)
      */
     @Transactional(readOnly = true)
-    public Atendimento carregarParaEscritaDoEstagiario(Long atendimentoId, Usuario usuario) {
+    public Atendimento exigirEditavel(Long atendimentoId, Usuario usuario) {
         Atendimento atendimento = carregarParaLeitura(atendimentoId, usuario);
 
         if (usuario.getPerfil() != Perfil.ESTAGIARIO
@@ -98,8 +109,8 @@ public class AtendimentoAcessoService {
      * <p>Depende de quem pergunta — o mesmo atendimento é editável para o
      * estagiário dono e somente leitura para o supervisor —, por isso é
      * calculado por requisição e nunca persistido. Espelha exatamente o que
-     * {@link #carregarParaEscritaDoEstagiario} aceita, para que o formulário
-     * habilitado no frontend nunca discorde da regra do backend.
+     * {@link #exigirEditavel} aceita, para que o formulário habilitado no
+     * frontend nunca discorde da regra do backend.
      */
     public boolean editavelPor(Atendimento atendimento, Usuario usuario) {
         return usuario.getPerfil() == Perfil.ESTAGIARIO

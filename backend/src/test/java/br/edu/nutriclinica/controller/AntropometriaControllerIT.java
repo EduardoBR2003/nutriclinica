@@ -270,8 +270,8 @@ class AntropometriaControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("salvar de novo substitui a seção: medida removida zera o indicador")
-    void salvarNovamenteSubstituiASecao() throws Exception {
+    @DisplayName("medida ausente no corpo é mantida: o PATCH é parcial")
+    void medidaAusenteEhMantida() throws Exception {
         Atendimento atendimento = novoAtendimento(
                 Sexo.MASCULINO, LocalDate.of(1990, 1, 1), LocalDate.of(2025, 1, 1), StatusAtendimento.RASCUNHO);
 
@@ -282,16 +282,51 @@ class AntropometriaControllerIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.relacaoCinturaQuadril").value(0.95));
 
-        // Segundo salvamento sem as circunferências: o corpo é a seção inteira.
+        // A balança é reaferida sozinha, e a tela manda só o peso. As
+        // circunferências anotadas antes não podem sumir por isso.
         mockMvc.perform(patch("/api/atendimentos/{id}/antropometria", atendimento.getId())
                         .header("Authorization", "Bearer " + token(ESTAGIARIO))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"pesoKg\":80.00,\"alturaCm\":180.0}"))
+                        .content("{\"pesoKg\":78.00}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pesoKg").value(78.00))
+                .andExpect(jsonPath("$.alturaCm").value(180.0))
+                .andExpect(jsonPath("$.circCinturaCm").value(95.0))
+                .andExpect(jsonPath("$.circQuadrilCm").value(100.0))
+                // O IMC não é parcial: é recalculado sobre o peso novo.
+                .andExpect(jsonPath("$.imc").value(24.07))
+                .andExpect(jsonPath("$.relacaoCinturaQuadril").value(0.95));
+    }
+
+    @Test
+    @DisplayName("medida enviada como null é apagada, e o indicador que dependia dela some")
+    void medidaNulaEhApagada() throws Exception {
+        Atendimento atendimento = novoAtendimento(
+                Sexo.MASCULINO, LocalDate.of(1990, 1, 1), LocalDate.of(2025, 1, 1), StatusAtendimento.RASCUNHO);
+
+        mockMvc.perform(patch("/api/atendimentos/{id}/antropometria", atendimento.getId())
+                        .header("Authorization", "Bearer " + token(ESTAGIARIO))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pesoKg\":80.00,\"alturaCm\":180.0,\"circCinturaCm\":95.0,\"circQuadrilCm\":100.0}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.relacaoCinturaQuadril").value(0.95));
+
+        // Aferição errada: o estagiário limpa os dois campos na tela.
+        mockMvc.perform(patch("/api/atendimentos/{id}/antropometria", atendimento.getId())
+                        .header("Authorization", "Bearer " + token(ESTAGIARIO))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"circCinturaCm\":null,\"circQuadrilCm\":null}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.imc").value(24.69))
+                .andExpect(jsonPath("$.circCinturaCm").doesNotExist())
                 .andExpect(jsonPath("$.relacaoCinturaQuadril").doesNotExist())
                 .andExpect(jsonPath("$.rcqElevada").doesNotExist())
                 .andExpect(jsonPath("$.riscoCardiovascular").doesNotExist());
+
+        Antropometria gravada = antropometriaRepository.findById(atendimento.getId()).orElseThrow();
+        assertThat(gravada.getCircCinturaCm()).isNull();
+        assertThat(gravada.getCircQuadrilCm()).isNull();
+        assertThat(gravada.getRelacaoCinturaQuadril()).isNull();
     }
 
     // ------------------------------------------------------------------

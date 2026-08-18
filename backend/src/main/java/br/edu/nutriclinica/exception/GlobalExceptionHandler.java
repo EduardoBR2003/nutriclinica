@@ -11,6 +11,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.util.List;
@@ -37,15 +38,48 @@ public class GlobalExceptionHandler {
                 .body(ErroResponse.de("VALIDACAO", "Falha de validação nos dados enviados.", campos));
     }
 
+    /**
+     * Violação encontrada na validação de parâmetro de método — é por aqui que
+     * caem os itens de um PUT de coleção, cujas constraints estão no elemento da
+     * lista e não no corpo como um todo.
+     */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErroResponse> tratarViolacao(ConstraintViolationException excecao) {
         List<ErroResponse.CampoErro> campos = excecao.getConstraintViolations().stream()
                 .map(violacao -> new ErroResponse.CampoErro(
-                        violacao.getPropertyPath().toString(), violacao.getMessage()))
+                        nomeDoCampo(violacao.getPropertyPath().toString()), violacao.getMessage()))
                 .toList();
 
         return ResponseEntity.unprocessableEntity()
                 .body(ErroResponse.de("VALIDACAO", "Falha de validação nos dados enviados.", campos));
+    }
+
+    /**
+     * O mesmo 422, quando quem valida os parâmetros é o Spring MVC em vez do
+     * proxy de método. Qual dos dois caminhos roda depende de detalhe de
+     * configuração; o que o cliente recebe não pode depender disso.
+     */
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErroResponse> tratarValidacaoDeParametro(HandlerMethodValidationException excecao) {
+        List<ErroResponse.CampoErro> campos = excecao.getAllValidationResults().stream()
+                .flatMap(resultado -> resultado.getResolvableErrors().stream()
+                        .map(erro -> new ErroResponse.CampoErro(
+                                resultado.getMethodParameter().getParameterName(),
+                                erro.getDefaultMessage())))
+                .toList();
+
+        return ResponseEntity.unprocessableEntity()
+                .body(ErroResponse.de("VALIDACAO", "Falha de validação nos dados enviados.", campos));
+    }
+
+    /**
+     * O caminho da violação inclui o nome do método que validou
+     * ({@code substituir.requisicao[0].nome}). O cliente só se interessa pelo
+     * campo, então o prefixo do método sai.
+     */
+    private String nomeDoCampo(String caminho) {
+        int primeiroPonto = caminho.indexOf('.');
+        return primeiroPonto < 0 ? caminho : caminho.substring(primeiroPonto + 1);
     }
 
     @ExceptionHandler({NaoAutorizadoException.class, AuthenticationException.class})

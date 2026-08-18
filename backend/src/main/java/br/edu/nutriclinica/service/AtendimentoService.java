@@ -16,6 +16,7 @@ import br.edu.nutriclinica.repository.AtendimentoRepository;
 import br.edu.nutriclinica.repository.TermoConsentimentoRepository;
 import br.edu.nutriclinica.repository.UsuarioRepository;
 import br.edu.nutriclinica.repository.VinculoSupervisaoRepository;
+import br.edu.nutriclinica.service.secao.ProntuarioCompletoService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -43,8 +44,8 @@ public class AtendimentoService {
     private final PacienteService pacienteService;
     private final NumeroProntuarioService numeroProntuarioService;
     private final SecoesPreenchidasService secoesPreenchidasService;
-    private final AtendimentoAcessoService atendimentoAcessoService;
-    private final AntropometriaService antropometriaService;
+    private final AtendimentoEditavelValidator atendimentoEditavelValidator;
+    private final ProntuarioCompletoService prontuarioCompletoService;
     private final AuthService authService;
 
     public AtendimentoService(AtendimentoRepository atendimentoRepository,
@@ -54,8 +55,8 @@ public class AtendimentoService {
                               PacienteService pacienteService,
                               NumeroProntuarioService numeroProntuarioService,
                               SecoesPreenchidasService secoesPreenchidasService,
-                              AtendimentoAcessoService atendimentoAcessoService,
-                              AntropometriaService antropometriaService,
+                              AtendimentoEditavelValidator atendimentoEditavelValidator,
+                              ProntuarioCompletoService prontuarioCompletoService,
                               AuthService authService) {
         this.atendimentoRepository = atendimentoRepository;
         this.usuarioRepository = usuarioRepository;
@@ -64,8 +65,8 @@ public class AtendimentoService {
         this.pacienteService = pacienteService;
         this.numeroProntuarioService = numeroProntuarioService;
         this.secoesPreenchidasService = secoesPreenchidasService;
-        this.atendimentoAcessoService = atendimentoAcessoService;
-        this.antropometriaService = antropometriaService;
+        this.atendimentoEditavelValidator = atendimentoEditavelValidator;
+        this.prontuarioCompletoService = prontuarioCompletoService;
         this.authService = authService;
     }
 
@@ -85,23 +86,23 @@ public class AtendimentoService {
     }
 
     /**
-     * Prontuário do atendimento. Hoje traz os campos base mais a antropometria,
-     * única seção implementada; as outras dez entram no bloco de seções, cada
-     * uma como mais um campo do AtendimentoCompleto.
+     * Prontuário do atendimento: os campos base mais as onze seções.
+     *
+     * <p>O escopo é aplicado uma vez, aqui, e as seções são lidas a partir do
+     * atendimento já carregado — nenhuma delas repete a consulta de acesso.
      */
     @Transactional(readOnly = true)
     public AtendimentoCompletoResponse detalhar(Long id) {
         Usuario usuario = authService.usuarioLogado();
-        Atendimento atendimento = atendimentoAcessoService.carregarParaLeitura(id, usuario);
+        Atendimento atendimento = atendimentoEditavelValidator.carregarParaLeitura(id, usuario);
 
         AtendimentoResponse base = AtendimentoResponse.de(
                 atendimento,
                 possuiTermo(atendimento.getPaciente().getId()),
-                atendimentoAcessoService.editavelPor(atendimento, usuario),
+                atendimentoEditavelValidator.editavelPor(atendimento, usuario),
                 secoesPreenchidasService.doAtendimento(atendimento.getId()));
 
-        return AtendimentoCompletoResponse.de(
-                base, antropometriaService.buscarDoAtendimento(atendimento).orElse(null));
+        return AtendimentoCompletoResponse.de(base, prontuarioCompletoService.secoesDe(atendimento));
     }
 
     /**
@@ -180,7 +181,7 @@ public class AtendimentoService {
                 .map(atendimento -> AtendimentoResponse.de(
                         atendimento,
                         comTermo.contains(atendimento.getPaciente().getId()),
-                        atendimentoAcessoService.editavelPor(atendimento, usuario),
+                        atendimentoEditavelValidator.editavelPor(atendimento, usuario),
                         secoes.getOrDefault(atendimento.getId(), Set.of())))
                 .toList();
     }

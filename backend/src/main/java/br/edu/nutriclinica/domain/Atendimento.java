@@ -11,11 +11,20 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Raiz do prontuário. As seções 1:1 apontam para cá com chave primária
- * compartilhada (@MapsId); a navegação inversa é feita pelos repositories,
- * já que o contrato salva seção por seção via PATCH.
+ * Raiz do prontuário.
+ *
+ * <p>As seções 1:1 apontam para cá com chave primária compartilhada (@MapsId) e
+ * não têm navegação inversa: o contrato as salva uma a uma via PATCH, e cada
+ * service busca a sua pelo repository.
+ *
+ * <p>As seções 1:N são coleções daqui, com {@code orphanRemoval}, porque o
+ * contrato as substitui inteiras via PUT: o que sai da lista precisa sair do
+ * banco junto, e é o Hibernate que emite esses DELETE. São todas LAZY — quem só
+ * lê os campos base do atendimento não carrega nenhuma delas.
  */
 @Entity
 @Table(name = "atendimento")
@@ -65,4 +74,21 @@ public class Atendimento {
     @UpdateTimestamp
     @Column(name = "atualizado_em", nullable = false)
     private LocalDateTime atualizadoEm;
+
+    // ------------------------------------------------------------------
+    // Seções 1:N — substituídas inteiras pelos PUT do contrato
+    // ------------------------------------------------------------------
+
+    @OneToMany(mappedBy = "atendimento", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Medicamento> medicamentos = new ArrayList<>();
+
+    @OneToMany(mappedBy = "atendimento", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ExameBioquimico> exames = new ArrayList<>();
+
+    @OneToMany(mappedBy = "atendimento", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("ordem ASC")
+    private List<RecordatorioRefeicao> refeicoes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "atendimento", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Meta> metas = new ArrayList<>();
 }

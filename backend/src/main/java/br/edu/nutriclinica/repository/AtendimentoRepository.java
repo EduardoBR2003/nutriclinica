@@ -4,6 +4,7 @@ import br.edu.nutriclinica.domain.Atendimento;
 import br.edu.nutriclinica.domain.enums.StatusAtendimento;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,8 +22,19 @@ import java.util.Optional;
  * <p>Os filtros opcionais do contrato (status e pacienteId) usam
  * {@code (:x is null or ...)}. O tipo do parâmetro é inferido da comparação ao
  * lado, então o Postgres não reclama de parâmetro indeterminado.
+ *
+ * <p>Paciente, estagiário e supervisor são LAZY na entidade e entram em toda
+ * resposta de atendimento, então vêm por {@code @EntityGraph} em vez de três
+ * consultas por linha — numa página de 20, a diferença é entre 1 e 61 idas ao
+ * banco. São todas associações {@code *ToOne}, então a paginação continua sendo
+ * feita pelo Postgres, não em memória.
  */
 public interface AtendimentoRepository extends JpaRepository<Atendimento, Long> {
+
+    /** Só o ADMIN chega aqui sem predicado de escopo — os outros perfis passam pelas queries abaixo. */
+    @Override
+    @EntityGraph(attributePaths = {"paciente", "estagiario", "supervisor"})
+    Optional<Atendimento> findById(Long id);
 
     String ESCOPO_ESTAGIARIO = "a.estagiario.id = :usuarioId";
 
@@ -38,26 +50,31 @@ public interface AtendimentoRepository extends JpaRepository<Atendimento, Long> 
             and (:pacienteId is null or a.paciente.id = :pacienteId)
             """;
 
+    @EntityGraph(attributePaths = {"paciente", "estagiario", "supervisor"})
     @Query("select a from Atendimento a where " + FILTROS + " and " + ESCOPO_ESTAGIARIO)
     Page<Atendimento> listarParaEstagiario(@Param("usuarioId") Long usuarioId,
                                            @Param("status") StatusAtendimento status,
                                            @Param("pacienteId") Long pacienteId,
                                            Pageable pageable);
 
+    @EntityGraph(attributePaths = {"paciente", "estagiario", "supervisor"})
     @Query("select a from Atendimento a where " + FILTROS + " and " + ESCOPO_SUPERVISOR)
     Page<Atendimento> listarParaSupervisor(@Param("usuarioId") Long usuarioId,
                                            @Param("status") StatusAtendimento status,
                                            @Param("pacienteId") Long pacienteId,
                                            Pageable pageable);
 
+    @EntityGraph(attributePaths = {"paciente", "estagiario", "supervisor"})
     @Query("select a from Atendimento a where " + FILTROS)
     Page<Atendimento> listarParaAdmin(@Param("status") StatusAtendimento status,
                                       @Param("pacienteId") Long pacienteId,
                                       Pageable pageable);
 
+    @EntityGraph(attributePaths = {"paciente", "estagiario", "supervisor"})
     @Query("select a from Atendimento a where a.id = :id and " + ESCOPO_ESTAGIARIO)
     Optional<Atendimento> buscarVisivelPeloEstagiario(@Param("id") Long id, @Param("usuarioId") Long usuarioId);
 
+    @EntityGraph(attributePaths = {"paciente", "estagiario", "supervisor"})
     @Query("select a from Atendimento a where a.id = :id and " + ESCOPO_SUPERVISOR)
     Optional<Atendimento> buscarVisivelPeloSupervisor(@Param("id") Long id, @Param("usuarioId") Long usuarioId);
 
