@@ -72,8 +72,20 @@ cp frontend/.env.example frontend/.env
 **2. Banco de dados**
 
 ```bash
-docker compose up -d            # PostgreSQL 17 em localhost:5432
+docker compose up -d            # PostgreSQL 17 em localhost:5433
 ```
+
+> **Por que 5433 e não 5432?** A porta padrão do PostgreSQL costuma já estar ocupada por
+> uma instalação nativa do Postgres na máquina de desenvolvimento. O container publica em
+> `5433` no host para conviver com ela — dentro do container o Postgres segue na 5432.
+> Se a sua 5432 estiver livre, basta trocar `POSTGRES_PORT` e `DB_URL` no seu `.env`.
+
+| Parâmetro | Valor local |
+|-----------|-------------|
+| Host      | `localhost` |
+| Porta     | `5433`      |
+| Database  | `nutriclinica` |
+| Usuário   | o que estiver em `POSTGRES_USER` no seu `.env` |
 
 **3. Backend**
 

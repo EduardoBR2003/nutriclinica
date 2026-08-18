@@ -54,7 +54,7 @@ spring:
       on-profile: dev
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/nutriclinica}
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/nutriclinica}
     username: ${DB_USERNAME:nutriclinica}
     password: ${DB_PASSWORD:nutriclinica}
 

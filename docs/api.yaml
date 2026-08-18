@@ -1,1 +1,1035 @@
-# Contrato OpenAPI — fonte da verdade da API do NutriClinica
+openapi: 3.0.3
+info:
+  title: NutriClinica API
+  version: 1.0.0
+  description: |
+    API do sistema de prontuário nutricional para clínica escola.
+
+    Este contrato é a fonte da verdade. O backend implementa exatamente estes
+    endpoints; o frontend consome exatamente estes formatos.
+
+servers:
+  - url: http://localhost:8080
+    description: Local
+  - url: https://nutriclinica-api.onrender.com
+    description: Produção
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Autenticação
+  - name: Usuários
+  - name: Pacientes
+  - name: Atendimentos
+  - name: Seções do prontuário
+  - name: Revisão
+
+paths:
+
+  # ---------------- AUTENTICAÇÃO ----------------
+
+  /api/auth/login:
+    post:
+      tags: [Autenticação]
+      security: []
+      summary: Autentica e retorna tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, senha]
+              properties:
+                email: { type: string, format: email }
+                senha: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { $ref: '#/components/responses/NaoAutorizado' }
+
+  /api/auth/refresh:
+    post:
+      tags: [Autenticação]
+      security: []
+      summary: Renova o access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+          description: OK
+        '401': { $ref: '#/components/responses/NaoAutorizado' }
+
+  /api/auth/me:
+    get:
+      tags: [Autenticação]
+      summary: Dados do usuário autenticado
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usuario' }
+
+  # ---------------- USUÁRIOS (ADMIN) ----------------
+
+  /api/usuarios:
+    get:
+      tags: [Usuários]
+      summary: Lista usuários
+      parameters:
+        - { in: query, name: perfil, schema: { $ref: '#/components/schemas/Perfil' } }
+        - { in: query, name: page, schema: { type: integer, default: 0 } }
+        - { in: query, name: size, schema: { type: integer, default: 20 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginaUsuario' }
+    post:
+      tags: [Usuários]
+      summary: Cria usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UsuarioRequest' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usuario' }
+        '422': { $ref: '#/components/responses/ErroValidacao' }
+
+  /api/usuarios/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Usuários]
+      summary: Detalha usuário
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usuario' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+    put:
+      tags: [Usuários]
+      summary: Atualiza usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UsuarioRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usuario' }
+
+  /api/usuarios/{id}/vinculos:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [Usuários]
+      summary: Define os estagiários orientados por um supervisor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                estagiarioIds:
+                  type: array
+                  items: { type: integer, format: int64 }
+      responses:
+        '204': { description: Atualizado }
+
+  # ---------------- PACIENTES ----------------
+
+  /api/pacientes:
+    get:
+      tags: [Pacientes]
+      summary: Lista pacientes visíveis ao usuário
+      parameters:
+        - { in: query, name: busca, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, default: 0 } }
+        - { in: query, name: size, schema: { type: integer, default: 20 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginaPaciente' }
+    post:
+      tags: [Pacientes]
+      summary: Cadastra paciente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PacienteRequest' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Paciente' }
+        '422': { $ref: '#/components/responses/ErroValidacao' }
+
+  /api/pacientes/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Pacientes]
+      summary: Detalha paciente
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Paciente' }
+        '403': { $ref: '#/components/responses/Proibido' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+    put:
+      tags: [Pacientes]
+      summary: Atualiza paciente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PacienteRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Paciente' }
+
+  /api/pacientes/{id}/termo:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Pacientes]
+      summary: Consulta o termo de consentimento
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TermoConsentimento' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+    put:
+      tags: [Pacientes]
+      summary: Registra ou atualiza o termo de consentimento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TermoConsentimentoRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TermoConsentimento' }
+
+  /api/pacientes/{id}/evolucao:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Pacientes]
+      summary: Série histórica de peso, IMC e medidas para gráficos
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PontoEvolucao' }
+
+  # ---------------- ATENDIMENTOS ----------------
+
+  /api/atendimentos:
+    get:
+      tags: [Atendimentos]
+      summary: Lista atendimentos conforme o perfil do usuário
+      description: |
+        Estagiário vê apenas os próprios. Supervisor vê os dos seus orientados.
+        Admin vê todos.
+      parameters:
+        - { in: query, name: status, schema: { $ref: '#/components/schemas/StatusAtendimento' } }
+        - { in: query, name: pacienteId, schema: { type: integer, format: int64 } }
+        - { in: query, name: page, schema: { type: integer, default: 0 } }
+        - { in: query, name: size, schema: { type: integer, default: 20 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginaAtendimento' }
+    post:
+      tags: [Atendimentos]
+      summary: Abre um novo atendimento
+      description: Falha com 409 se o paciente não tiver termo LGPD registrado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pacienteId, supervisorId, dataConsulta]
+              properties:
+                pacienteId:   { type: integer, format: int64 }
+                supervisorId: { type: integer, format: int64 }
+                dataConsulta: { type: string, format: date }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Atendimento' }
+        '409': { $ref: '#/components/responses/Conflito' }
+
+  /api/atendimentos/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Atendimentos]
+      summary: Retorna o prontuário completo
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AtendimentoCompleto' }
+        '403': { $ref: '#/components/responses/Proibido' }
+
+  /api/atendimentos/{id}/submeter:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Atendimentos]
+      summary: Envia o atendimento para revisão do supervisor
+      description: |
+        Transição RASCUNHO ou DEVOLVIDO_PARA_CORRECAO → EM_REVISAO.
+        Valida que as seções obrigatórias estão preenchidas.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Atendimento' }
+        '409':
+          $ref: '#/components/responses/Conflito'
+
+  # ---------------- SEÇÕES (PATCH por seção) ----------------
+  # Todas exigem status RASCUNHO ou DEVOLVIDO_PARA_CORRECAO,
+  # e que o usuário seja o estagiário dono do atendimento.
+  # Caso contrário: 409 TRANSICAO_INVALIDA ou 403.
+
+  /api/atendimentos/{id}/queixa-principal:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Seções do prontuário]
+      summary: Salva a queixa principal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QueixaPrincipal' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QueixaPrincipal' }
+        '409': { $ref: '#/components/responses/Conflito' }
+
+  /api/atendimentos/{id}/historia-clinica:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Seções do prontuário]
+      summary: Salva a história clínica
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HistoriaClinica' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HistoriaClinica' }
+
+  /api/atendimentos/{id}/antropometria:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Seções do prontuário]
+      summary: Salva a antropometria e retorna os indicadores calculados
+      description: |
+        IMC, classificação e relação cintura/quadril são calculados pelo
+        servidor. Campos calculados enviados pelo cliente são ignorados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AntropometriaRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Antropometria' }
+
+  /api/atendimentos/{id}/medicamentos:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [Seções do prontuário]
+      summary: Substitui a lista de medicamentos e suplementos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/components/schemas/Medicamento' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Medicamento' }
+
+  /api/atendimentos/{id}/exames:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [Seções do prontuário]
+      summary: Substitui a lista de exames bioquímicos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/components/schemas/ExameBioquimico' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ExameBioquimico' }
+
+  /api/atendimentos/{id}/recordatorio:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [Seções do prontuário]
+      summary: Substitui o recordatório alimentar de 24 horas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/components/schemas/Refeicao' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Refeicao' }
+
+  /api/atendimentos/{id}/frequencia-alimentar:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Seções do prontuário]
+      summary: Salva a frequência alimentar e hidratação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FrequenciaAlimentar' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FrequenciaAlimentar' }
+
+  /api/atendimentos/{id}/comportamento-alimentar:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Seções do prontuário]
+      summary: Salva o comportamento alimentar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ComportamentoAlimentar' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComportamentoAlimentar' }
+
+  /api/atendimentos/{id}/diagnostico:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Seções do prontuário]
+      summary: Salva o diagnóstico nutricional no modelo PES
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DiagnosticoPes' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DiagnosticoPes' }
+
+  /api/atendimentos/{id}/plano:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [Seções do prontuário]
+      summary: Salva o plano de intervenção nutricional
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanoIntervencao' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanoIntervencao' }
+
+  /api/atendimentos/{id}/metas:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [Seções do prontuário]
+      summary: Substitui a lista de metas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/components/schemas/Meta' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Meta' }
+
+  # ---------------- REVISÃO ----------------
+
+  /api/revisoes/pendentes:
+    get:
+      tags: [Revisão]
+      summary: Fila de atendimentos aguardando revisão do supervisor
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginaAtendimento' }
+
+  /api/atendimentos/{id}/avaliacao:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Revisão]
+      summary: Consulta a avaliação do atendimento
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Avaliacao' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+    post:
+      tags: [Revisão]
+      summary: Registra a avaliação e conclui a revisão
+      description: |
+        Exige status EM_REVISAO e que o usuário seja o supervisor designado.
+        `resultado: APROVADO` leva o atendimento a APROVADO.
+        `resultado: DEVOLVIDO` leva a DEVOLVIDO_PARA_CORRECAO e devolve a
+        permissão de edição ao estagiário.
+        A nota final é calculada pelo servidor como média ponderada da rubrica.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AvaliacaoRequest' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Avaliacao' }
+        '409': { $ref: '#/components/responses/Conflito' }
+
+  /api/atendimentos/{id}/comentarios:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Revisão]
+      summary: Lista comentários por seção
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ComentarioSecao' }
+    post:
+      tags: [Revisão]
+      summary: Adiciona comentário a uma seção
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [secao, texto]
+              properties:
+                secao: { $ref: '#/components/schemas/SecaoProntuario' }
+                texto: { type: string }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComentarioSecao' }
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Id:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer, format: int64 }
+
+  responses:
+    NaoAutorizado:
+      description: Credenciais ausentes ou inválidas
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erro' }
+    Proibido:
+      description: Sem permissão para este recurso
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erro' }
+    NaoEncontrado:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erro' }
+    Conflito:
+      description: Operação inválida no estado atual
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erro' }
+    ErroValidacao:
+      description: Falha de validação
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erro' }
+
+  schemas:
+
+    Erro:
+      type: object
+      properties:
+        codigo:    { type: string, example: TRANSICAO_INVALIDA }
+        mensagem:  { type: string }
+        timestamp: { type: string, format: date-time }
+        campos:
+          type: array
+          items:
+            type: object
+            properties:
+              campo:    { type: string }
+              mensagem: { type: string }
+
+    Perfil:
+      type: string
+      enum: [ESTAGIARIO, SUPERVISOR, ADMIN]
+
+    StatusAtendimento:
+      type: string
+      enum: [RASCUNHO, EM_REVISAO, APROVADO, DEVOLVIDO_PARA_CORRECAO]
+
+    SecaoProntuario:
+      type: string
+      enum: [QUEIXA_PRINCIPAL, HISTORIA_CLINICA, MEDICAMENTOS, ANTROPOMETRIA,
+             EXAMES, RECORDATORIO, FREQUENCIA_ALIMENTAR, COMPORTAMENTO_ALIMENTAR,
+             DIAGNOSTICO, PLANO, METAS]
+
+    Frequencia:
+      type: string
+      enum: [NUNCA, RARAMENTE, SEMANAL, QUASE_DIARIO, DIARIO]
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:  { type: string }
+        refreshToken: { type: string }
+        expiraEm:     { type: integer, description: segundos }
+        usuario:      { $ref: '#/components/schemas/Usuario' }
+
+    Usuario:
+      type: object
+      properties:
+        id:     { type: integer, format: int64 }
+        nome:   { type: string }
+        email:  { type: string, format: email }
+        perfil: { $ref: '#/components/schemas/Perfil' }
+        ativo:  { type: boolean }
+
+    UsuarioRequest:
+      type: object
+      required: [nome, email, perfil]
+      properties:
+        nome:   { type: string, minLength: 3, maxLength: 150 }
+        email:  { type: string, format: email }
+        senha:  { type: string, minLength: 8 }
+        perfil: { $ref: '#/components/schemas/Perfil' }
+        ativo:  { type: boolean, default: true }
+
+    Paciente:
+      type: object
+      properties:
+        id:             { type: integer, format: int64 }
+        nome:           { type: string }
+        dataNascimento: { type: string, format: date }
+        idade:          { type: integer, description: calculada pelo servidor }
+        sexo:           { type: string, enum: [FEMININO, MASCULINO, OUTRO, NAO_INFORMADO] }
+        racaCor:        { type: string, enum: [BRANCA, PRETA, PARDA, AMARELA, INDIGENA, NAO_INFORMADO] }
+        telefone:       { type: string }
+        email:          { type: string }
+        possuiTermo:    { type: boolean }
+
+    PacienteRequest:
+      type: object
+      required: [nome, dataNascimento, sexo]
+      properties:
+        nome:           { type: string, minLength: 3, maxLength: 150 }
+        dataNascimento: { type: string, format: date }
+        sexo:           { type: string, enum: [FEMININO, MASCULINO, OUTRO, NAO_INFORMADO] }
+        racaCor:        { type: string, enum: [BRANCA, PRETA, PARDA, AMARELA, INDIGENA, NAO_INFORMADO] }
+        telefone:       { type: string }
+        email:          { type: string, format: email }
+
+    TermoConsentimento:
+      type: object
+      properties:
+        aceiteLgpd:          { type: boolean }
+        autorizaUsoPesquisa: { type: boolean }
+        dataAceite:          { type: string, format: date }
+        registradoPor:       { type: string }
+        observacoes:         { type: string }
+
+    TermoConsentimentoRequest:
+      type: object
+      required: [aceiteLgpd, dataAceite]
+      properties:
+        aceiteLgpd:          { type: boolean }
+        autorizaUsoPesquisa: { type: boolean, default: false }
+        dataAceite:          { type: string, format: date }
+        observacoes:         { type: string }
+
+    Atendimento:
+      type: object
+      properties:
+        id:               { type: integer, format: int64 }
+        numeroProntuario: { type: string }
+        paciente:         { $ref: '#/components/schemas/Paciente' }
+        estagiario:       { $ref: '#/components/schemas/Usuario' }
+        supervisor:       { $ref: '#/components/schemas/Usuario' }
+        dataConsulta:     { type: string, format: date }
+        status:           { $ref: '#/components/schemas/StatusAtendimento' }
+        editavel:         { type: boolean, description: se o usuário atual pode editar }
+        secoesPreenchidas:
+          type: array
+          items: { $ref: '#/components/schemas/SecaoProntuario' }
+        submetidoEm: { type: string, format: date-time }
+        avaliadoEm:  { type: string, format: date-time }
+
+    AtendimentoCompleto:
+      allOf:
+        - $ref: '#/components/schemas/Atendimento'
+        - type: object
+          properties:
+            queixaPrincipal:       { $ref: '#/components/schemas/QueixaPrincipal' }
+            historiaClinica:       { $ref: '#/components/schemas/HistoriaClinica' }
+            medicamentos:          { type: array, items: { $ref: '#/components/schemas/Medicamento' } }
+            antropometria:         { $ref: '#/components/schemas/Antropometria' }
+            exames:                { type: array, items: { $ref: '#/components/schemas/ExameBioquimico' } }
+            recordatorio:          { type: array, items: { $ref: '#/components/schemas/Refeicao' } }
+            frequenciaAlimentar:   { $ref: '#/components/schemas/FrequenciaAlimentar' }
+            comportamentoAlimentar: { $ref: '#/components/schemas/ComportamentoAlimentar' }
+            diagnostico:           { $ref: '#/components/schemas/DiagnosticoPes' }
+            plano:                 { $ref: '#/components/schemas/PlanoIntervencao' }
+            metas:                 { type: array, items: { $ref: '#/components/schemas/Meta' } }
+            avaliacao:             { $ref: '#/components/schemas/Avaliacao' }
+
+    QueixaPrincipal:
+      type: object
+      properties:
+        motivo:             { type: string }
+        tempoQueixa:        { type: string }
+        tratamentoAnterior: { type: string }
+        objetivoConsulta:   { type: string }
+        observacoes:        { type: string }
+
+    HistoriaClinica:
+      type: object
+      properties:
+        doencasDiagnosticadas:  { type: string }
+        alergias:               { type: string }
+        intolerancias:          { type: string }
+        historicoFamiliar:      { type: string }
+        tabagismo:              { type: string, enum: [NUNCA_FUMOU, EX_FUMANTE, FUMANTE] }
+        horasSono:              { type: number }
+        qualidadeSono:          { type: string, enum: [RUIM, REGULAR, BOA] }
+        nivelEstresse:          { type: string, enum: [BAIXO, MODERADO, ALTO] }
+        habitoIntestinal:       { type: string, enum: [DIARIO, ALTERNADO, CONSTIPADO, DIARREICO, IRREGULAR] }
+        praticaAtividadeFisica: { type: boolean }
+        descricaoAtividade:     { type: string }
+        observacoes:            { type: string }
+
+    Medicamento:
+      type: object
+      required: [tipo, nome]
+      properties:
+        id:         { type: integer, format: int64 }
+        tipo:       { type: string, enum: [MEDICAMENTO, SUPLEMENTO] }
+        nome:       { type: string }
+        dose:       { type: string }
+        frequencia: { type: string }
+
+    AntropometriaRequest:
+      type: object
+      properties:
+        pesoKg:            { type: number, minimum: 1,  maximum: 400 }
+        alturaCm:          { type: number, minimum: 30, maximum: 250 }
+        circCinturaCm:     { type: number }
+        circQuadrilCm:     { type: number }
+        percentualGordura: { type: number }
+        massaMagraKg:      { type: number }
+        aferidoEm:         { type: string, format: date }
+
+    Antropometria:
+      allOf:
+        - $ref: '#/components/schemas/AntropometriaRequest'
+        - type: object
+          description: Campos abaixo são somente leitura, calculados pelo servidor.
+          properties:
+            imc:                   { type: number, readOnly: true }
+            classificacaoImc:      { type: string, readOnly: true }
+            relacaoCinturaQuadril: { type: number, readOnly: true }
+            riscoCardiovascular:   { type: string, readOnly: true, enum: [BAIXO, MODERADO, ALTO] }
+
+    ExameBioquimico:
+      type: object
+      required: [nomeExame]
+      properties:
+        id:              { type: integer, format: int64 }
+        nomeExame:       { type: string }
+        valor:           { type: number }
+        unidade:         { type: string }
+        dataExame:       { type: string, format: date }
+        valorReferencia: { type: string }
+
+    Refeicao:
+      type: object
+      required: [tipoRefeicao]
+      properties:
+        id:            { type: integer, format: int64 }
+        tipoRefeicao:  { type: string, enum: [DESJEJUM, LANCHE_MANHA, ALMOCO, LANCHE_TARDE, JANTAR, CEIA, OUTRO] }
+        horario:       { type: string, example: "07:30" }
+        localRefeicao: { type: string }
+        ordem:         { type: integer }
+        itens:
+          type: array
+          items:
+            type: object
+            required: [alimento]
+            properties:
+              id:            { type: integer, format: int64 }
+              alimento:      { type: string }
+              quantidade:    { type: string }
+              medidaCaseira: { type: string }
+              ordem:         { type: integer }
+
+    FrequenciaAlimentar:
+      type: object
+      properties:
+        frutas:           { $ref: '#/components/schemas/Frequencia' }
+        verdurasLegumes:  { $ref: '#/components/schemas/Frequencia' }
+        ultraprocessados: { $ref: '#/components/schemas/Frequencia' }
+        refrigerante:     { $ref: '#/components/schemas/Frequencia' }
+        bebidaAlcoolica:  { $ref: '#/components/schemas/Frequencia' }
+        cafe:             { $ref: '#/components/schemas/Frequencia' }
+        aguaMlDia:        { type: integer, minimum: 0, maximum: 10000 }
+        observacoes:      { type: string }
+
+    ComportamentoAlimentar:
+      type: object
+      properties:
+        comeAssistindoTela:   { type: boolean }
+        comeRapido:           { type: boolean }
+        pulaRefeicoes:        { type: boolean }
+        compulsaoAlimentar:   { type: boolean }
+        alimentacaoEmocional: { type: boolean }
+        restricaoAlimentar:   { type: boolean }
+        observacoes:          { type: string }
+
+    DiagnosticoPes:
+      type: object
+      properties:
+        problema:       { type: string }
+        etiologia:      { type: string }
+        sinaisSintomas: { type: string }
+
+    PlanoIntervencao:
+      type: object
+      properties:
+        objetivos:                  { type: string }
+        prescricaoEnergeticaKcal:   { type: integer }
+        percCarboidrato:            { type: number }
+        percProteina:               { type: number }
+        percLipideo:                { type: number }
+        estrategiasComportamentais: { type: string }
+        educacaoAlimentar:          { type: string }
+
+    Meta:
+      type: object
+      required: [descricao, prazo]
+      properties:
+        id:          { type: integer, format: int64 }
+        descricao:   { type: string }
+        prazo:       { type: string, enum: [CURTO, MEDIO] }
+        indicador:   { type: string }
+        dataRetorno: { type: string, format: date }
+
+    AvaliacaoRequest:
+      type: object
+      required: [resultado, itens]
+      properties:
+        resultado:    { type: string, enum: [APROVADO, DEVOLVIDO] }
+        parecerGeral: { type: string }
+        itens:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [criterio, nota]
+            properties:
+              criterio:   { type: string }
+              peso:       { type: number, default: 1 }
+              nota:       { type: number, minimum: 0, maximum: 10 }
+              comentario: { type: string }
+
+    Avaliacao:
+      type: object
+      properties:
+        id:           { type: integer, format: int64 }
+        supervisor:   { $ref: '#/components/schemas/Usuario' }
+        notaFinal:    { type: number, readOnly: true }
+        resultado:    { type: string, enum: [APROVADO, DEVOLVIDO] }
+        parecerGeral: { type: string }
+        avaliadoEm:   { type: string, format: date-time }
+        itens:
+          type: array
+          items:
+            type: object
+            properties:
+              id:         { type: integer, format: int64 }
+              criterio:   { type: string }
+              peso:       { type: number }
+              nota:       { type: number }
+              comentario: { type: string }
+
+    ComentarioSecao:
+      type: object
+      properties:
+        id:        { type: integer, format: int64 }
+        autor:     { $ref: '#/components/schemas/Usuario' }
+        secao:     { $ref: '#/components/schemas/SecaoProntuario' }
+        texto:     { type: string }
+        resolvido: { type: boolean }
+        criadoEm:  { type: string, format: date-time }
+
+    PontoEvolucao:
+      type: object
+      properties:
+        dataConsulta:  { type: string, format: date }
+        pesoKg:        { type: number }
+        imc:           { type: number }
+        circCinturaCm: { type: number }
+        circQuadrilCm: { type: number }
+
+    PaginaUsuario:
+      allOf:
+        - $ref: '#/components/schemas/Pagina'
+        - type: object
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/Usuario' } }
+
+    PaginaPaciente:
+      allOf:
+        - $ref: '#/components/schemas/Pagina'
+        - type: object
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/Paciente' } }
+
+    PaginaAtendimento:
+      allOf:
+        - $ref: '#/components/schemas/Pagina'
+        - type: object
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/Atendimento' } }
+
+    Pagina:
+      type: object
+      properties:
+        totalElements: { type: integer }
+        totalPages:    { type: integer }
+        number:        { type: integer }
+        size:          { type: integer }
