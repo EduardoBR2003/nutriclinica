@@ -1,17 +1,14 @@
 package br.edu.nutriclinica;
 
+import br.edu.nutriclinica.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Smoke test da Etapa 0: garante que o contexto sobe (web + security + springdoc).
- * A camada de persistência é excluída aqui — os testes com banco real via
- * Testcontainers entram na Etapa 3, junto com as migrations e as entidades.
+ * Smoke test: garante que o contexto completo sobe — web, security, JPA, Flyway
+ * e springdoc — contra um PostgreSQL real. Desde o bloco de autenticação a camada
+ * de segurança depende dos repositories, então não faz mais sentido subir sem banco.
  */
-@SpringBootTest
-@ActiveProfiles("test")
-class NutriclinicaApiApplicationTests {
+class NutriclinicaApiApplicationTests extends AbstractIntegrationTest {
 
     @Test
     void contextLoads() {
