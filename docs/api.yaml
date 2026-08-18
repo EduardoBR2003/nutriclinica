@@ -863,7 +863,8 @@ components:
             imc:                   { type: number, readOnly: true }
             classificacaoImc:      { type: string, readOnly: true }
             relacaoCinturaQuadril: { type: number, readOnly: true }
-            riscoCardiovascular:   { type: string, readOnly: true, enum: [BAIXO, MODERADO, ALTO] }
+            riscoCardiovascular:   { type: string, readOnly: true, enum: [BAIXO, AUMENTADO, MUITO_AUMENTADO] }
+            rcqElevada:            { type: boolean, readOnly: true }
 
     ExameBioquimico:
       type: object
