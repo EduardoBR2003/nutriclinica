@@ -2,6 +2,7 @@ package br.edu.nutriclinica.domain;
 
 import br.edu.nutriclinica.domain.enums.StatusAtendimento;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -57,14 +58,21 @@ public class Atendimento {
     @Column(name = "data_consulta", nullable = false)
     private LocalDate dataConsulta;
 
+    /**
+     * Os três campos da máquina de estados não têm setter: escrevem-se juntos,
+     * por {@link #aplicarTransicao}, e nunca um sem o outro.
+     */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
+    @Setter(AccessLevel.NONE)
     private StatusAtendimento status = StatusAtendimento.RASCUNHO;
 
     @Column(name = "submetido_em")
+    @Setter(AccessLevel.NONE)
     private LocalDateTime submetidoEm;
 
     @Column(name = "avaliado_em")
+    @Setter(AccessLevel.NONE)
     private LocalDateTime avaliadoEm;
 
     @CreationTimestamp
@@ -91,4 +99,37 @@ public class Atendimento {
 
     @OneToMany(mappedBy = "atendimento", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Meta> metas = new ArrayList<>();
+
+    // ------------------------------------------------------------------
+    // Máquina de estados
+    // ------------------------------------------------------------------
+
+    /**
+     * Registra uma transição de estado já decidida.
+     *
+     * <p>Único caminho de escrita do status, e é por ele que os carimbos de tempo
+     * ficam coerentes: {@code submetidoEm} é, por definição, o instante em que o
+     * prontuário entrou em EM_REVISAO, e {@code avaliadoEm} o instante em que o
+     * supervisor o fechou. Deixá-los a cargo de quem chama abriria a
+     * possibilidade de um atendimento EM_REVISAO sem data de submissão — estado
+     * que a fila de revisão não saberia ordenar.
+     *
+     * <p>Quem decide se a transição é <b>permitida</b> é o
+     * {@code AtendimentoWorkflowService}, e só ele deveria chamar este método.
+     * A entidade é o registro do que foi decidido, não a regra: ela não conhece
+     * a tabela de transições nem quem está autenticado.
+     *
+     * <p>Os setters dos três campos foram removidos justamente para que essa
+     * regra não dependa de disciplina — um {@code setStatus} esquecido em algum
+     * serviço novo não compila. O Hibernate não se importa: o mapeamento é por
+     * campo (o {@code @Id} está no campo), então ele nunca chamou esses setters.
+     */
+    public void aplicarTransicao(StatusAtendimento novo, LocalDateTime momento) {
+        this.status = novo;
+        switch (novo) {
+            case EM_REVISAO -> this.submetidoEm = momento;
+            case APROVADO, DEVOLVIDO_PARA_CORRECAO -> this.avaliadoEm = momento;
+            case RASCUNHO -> { }
+        }
+    }
 }

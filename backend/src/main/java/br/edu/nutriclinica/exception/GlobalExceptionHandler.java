@@ -104,11 +104,17 @@ public class GlobalExceptionHandler {
      * Cobre TransicaoInvalidaException, SemTermoConsentimentoException e as que
      * vierem: o código específico viaja na exceção, e não há um handler novo a
      * cada situação de conflito.
+     *
+     * <p>O {@code campos} vem junto pelo mesmo motivo — é
+     * {@code SECOES_INCOMPLETAS} quem o preenche, listando o que falta para
+     * submeter. Nos conflitos que não têm o que apontar ele é nulo, e o
+     * {@code @JsonInclude(NON_NULL)} do {@link ErroResponse} o omite: a resposta
+     * dos 409 anteriores continua idêntica.
      */
     @ExceptionHandler(ConflitoException.class)
     public ResponseEntity<ErroResponse> tratarConflito(ConflitoException excecao) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ErroResponse.de(excecao.getCodigo(), excecao.getMessage()));
+                .body(ErroResponse.de(excecao.getCodigo(), excecao.getMessage(), excecao.getCampos()));
     }
 
     /** Validação de regra de domínio, no mesmo formato da validação de campo. */

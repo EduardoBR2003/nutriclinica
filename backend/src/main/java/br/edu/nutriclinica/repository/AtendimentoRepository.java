@@ -79,6 +79,24 @@ public interface AtendimentoRepository extends JpaRepository<Atendimento, Long> 
     Optional<Atendimento> buscarVisivelPeloSupervisor(@Param("id") Long id, @Param("usuarioId") Long usuarioId);
 
     /**
+     * A fila de revisão de um supervisor.
+     *
+     * <p>Só o <b>designado</b>, e não o escopo largo de {@link #ESCOPO_SUPERVISOR}:
+     * enxergar o prontuário de um orientado não faz dele um item da sua fila de
+     * trabalho. Quem revisa é quem foi designado no atendimento.
+     *
+     * <p>A ordem vem do {@code Pageable} — mais antigo primeiro, quem esperou
+     * mais é atendido antes.
+     */
+    @EntityGraph(attributePaths = {"paciente", "estagiario", "supervisor"})
+    @Query("""
+            select a from Atendimento a
+            where a.status = br.edu.nutriclinica.domain.enums.StatusAtendimento.EM_REVISAO
+              and a.supervisor.id = :supervisorId
+            """)
+    Page<Atendimento> listarPendentesDeRevisao(@Param("supervisorId") Long supervisorId, Pageable pageable);
+
+    /**
      * Quais seções já têm registro persistido, para um conjunto de atendimentos.
      *
      * <p>Uma consulta para a página inteira em vez de onze por atendimento — numa

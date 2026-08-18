@@ -339,13 +339,26 @@ paths:
       summary: Envia o atendimento para revisão do supervisor
       description: |
         Transição RASCUNHO ou DEVOLVIDO_PARA_CORRECAO → EM_REVISAO.
-        Valida que as seções obrigatórias estão preenchidas.
+        Exclusivo do estagiário dono do atendimento.
+
+        Dois códigos de 409, que o frontend distingue pelo `codigo`:
+        `TRANSICAO_INVALIDA` quando o status atual não admite a submissão, e
+        `SECOES_INCOMPLETAS` quando falta conteúdo obrigatório — este último
+        preenche `Erro.campos` com o caminho de cada campo pendente
+        (`diagnostico.etiologia`, `antropometria.pesoKg`, `recordatorio`…),
+        na ordem em que as seções aparecem no formulário.
+
+        São obrigatórias para submeter: queixa principal (motivo),
+        antropometria (peso e altura), recordatório (ao menos uma refeição),
+        diagnóstico PES (os três campos) e plano (objetivos).
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Atendimento' }
+        '403': { $ref: '#/components/responses/Proibido' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
         '409':
           $ref: '#/components/responses/Conflito'
 
@@ -567,6 +580,13 @@ paths:
     get:
       tags: [Revisão]
       summary: Fila de atendimentos aguardando revisão do supervisor
+      description: |
+        Os EM_REVISAO em que o usuário autenticado é o supervisor **designado**,
+        do mais antigo para o mais recente. Orientar o estagiário não basta:
+        revisar é de quem foi designado no atendimento.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, default: 0 } }
+        - { in: query, name: size, schema: { type: integer, default: 20 } }
       responses:
         '200':
           description: OK
@@ -624,6 +644,9 @@ paths:
     post:
       tags: [Revisão]
       summary: Adiciona comentário a uma seção
+      description: |
+        Escreve apenas o supervisor designado, em qualquer status: o parecer não
+        se fecha junto com o prontuário. O estagiário dono lê, mas não escreve.
       requestBody:
         required: true
         content:
@@ -640,6 +663,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ComentarioSecao' }
+        '403': { $ref: '#/components/responses/Proibido' }
 
 components:
 
@@ -688,7 +712,14 @@ components:
     Erro:
       type: object
       properties:
-        codigo:    { type: string, example: TRANSICAO_INVALIDA }
+        codigo:
+          type: string
+          example: TRANSICAO_INVALIDA
+          description: |
+            Código estável, é por ele que o cliente distingue os erros — nunca
+            pelo texto de `mensagem`. Em uso: VALIDACAO, NAO_AUTORIZADO,
+            SEM_PERMISSAO, NAO_ENCONTRADO, TRANSICAO_INVALIDA,
+            SEM_TERMO_CONSENTIMENTO, SECOES_INCOMPLETAS, ERRO_INTERNO.
         mensagem:  { type: string }
         timestamp: { type: string, format: date-time }
         campos:

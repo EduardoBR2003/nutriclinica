@@ -4,7 +4,6 @@ import br.edu.nutriclinica.domain.Atendimento;
 import br.edu.nutriclinica.domain.Paciente;
 import br.edu.nutriclinica.domain.Usuario;
 import br.edu.nutriclinica.domain.enums.Perfil;
-import br.edu.nutriclinica.domain.enums.SecaoProntuario;
 import br.edu.nutriclinica.domain.enums.StatusAtendimento;
 import br.edu.nutriclinica.dto.AtendimentoCompletoResponse;
 import br.edu.nutriclinica.dto.AtendimentoRequest;
@@ -16,23 +15,24 @@ import br.edu.nutriclinica.repository.AtendimentoRepository;
 import br.edu.nutriclinica.repository.TermoConsentimentoRepository;
 import br.edu.nutriclinica.repository.UsuarioRepository;
 import br.edu.nutriclinica.repository.VinculoSupervisaoRepository;
+import br.edu.nutriclinica.service.auditoria.Auditavel;
 import br.edu.nutriclinica.service.secao.ProntuarioCompletoService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
  * Abertura e leitura de atendimentos.
  *
  * <p>Como em {@link PacienteService}, o escopo de LGPD é predicado da query e
- * atendimento fora dele devolve 404. A máquina de estados propriamente dita
- * (submeter, aprovar, devolver) é do bloco seguinte; aqui o atendimento só
- * nasce em RASCUNHO.
+ * atendimento fora dele devolve 404.
+ *
+ * <p>Aqui o atendimento só <b>nasce</b>, sempre em RASCUNHO. Mudá-lo de estado é
+ * do {@link AtendimentoWorkflowService}, que é o único ponto do sistema com essa
+ * permissão — nem este serviço escreve {@code status}.
  */
 @Service
 public class AtendimentoService {
@@ -43,9 +43,10 @@ public class AtendimentoService {
     private final TermoConsentimentoRepository termoConsentimentoRepository;
     private final PacienteService pacienteService;
     private final NumeroProntuarioService numeroProntuarioService;
-    private final SecoesPreenchidasService secoesPreenchidasService;
     private final AtendimentoEditavelValidator atendimentoEditavelValidator;
     private final ProntuarioCompletoService prontuarioCompletoService;
+    private final AvaliacaoService avaliacaoService;
+    private final AtendimentoResponseAssembler assembler;
     private final AuthService authService;
 
     public AtendimentoService(AtendimentoRepository atendimentoRepository,
@@ -54,9 +55,10 @@ public class AtendimentoService {
                               TermoConsentimentoRepository termoConsentimentoRepository,
                               PacienteService pacienteService,
                               NumeroProntuarioService numeroProntuarioService,
-                              SecoesPreenchidasService secoesPreenchidasService,
                               AtendimentoEditavelValidator atendimentoEditavelValidator,
                               ProntuarioCompletoService prontuarioCompletoService,
+                              AvaliacaoService avaliacaoService,
+                              AtendimentoResponseAssembler assembler,
                               AuthService authService) {
         this.atendimentoRepository = atendimentoRepository;
         this.usuarioRepository = usuarioRepository;
@@ -64,9 +66,10 @@ public class AtendimentoService {
         this.termoConsentimentoRepository = termoConsentimentoRepository;
         this.pacienteService = pacienteService;
         this.numeroProntuarioService = numeroProntuarioService;
-        this.secoesPreenchidasService = secoesPreenchidasService;
         this.atendimentoEditavelValidator = atendimentoEditavelValidator;
         this.prontuarioCompletoService = prontuarioCompletoService;
+        this.avaliacaoService = avaliacaoService;
+        this.assembler = assembler;
         this.authService = authService;
     }
 
@@ -82,27 +85,28 @@ public class AtendimentoService {
             case ADMIN -> atendimentoRepository.listarParaAdmin(status, pacienteId, pageable);
         };
 
-        return PaginaResponse.de(pagina, converterEmLote(pagina.getContent(), usuario));
+        return PaginaResponse.de(pagina, assembler.emLote(pagina.getContent(), usuario));
     }
 
     /**
-     * Prontuário do atendimento: os campos base mais as onze seções.
+     * Prontuário do atendimento: os campos base, as onze seções e a avaliação.
      *
      * <p>O escopo é aplicado uma vez, aqui, e as seções são lidas a partir do
      * atendimento já carregado — nenhuma delas repete a consulta de acesso.
+     *
+     * <p>É a leitura auditada do bloco: abrir um prontuário é acesso a dado
+     * sensível de saúde, e a LGPD quer saber quem o fez.
      */
+    @Auditavel(acao = "LEITURA_PRONTUARIO", entidade = "Atendimento")
     @Transactional(readOnly = true)
     public AtendimentoCompletoResponse detalhar(Long id) {
         Usuario usuario = authService.usuarioLogado();
         Atendimento atendimento = atendimentoEditavelValidator.carregarParaLeitura(id, usuario);
 
-        AtendimentoResponse base = AtendimentoResponse.de(
-                atendimento,
-                possuiTermo(atendimento.getPaciente().getId()),
-                atendimentoEditavelValidator.editavelPor(atendimento, usuario),
-                secoesPreenchidasService.doAtendimento(atendimento.getId()));
-
-        return AtendimentoCompletoResponse.de(base, prontuarioCompletoService.secoesDe(atendimento));
+        return AtendimentoCompletoResponse.de(
+                assembler.unico(atendimento, usuario),
+                prontuarioCompletoService.secoesDe(atendimento),
+                avaliacaoService.doAtendimento(atendimento).orElse(null));
     }
 
     /**
@@ -130,7 +134,9 @@ public class AtendimentoService {
         atendimento.setEstagiario(estagiario);
         atendimento.setSupervisor(supervisor);
         atendimento.setDataConsulta(requisicao.dataConsulta());
-        atendimento.setStatus(StatusAtendimento.RASCUNHO);
+        // O status não é atribuído aqui: RASCUNHO é o estado de nascimento,
+        // declarado na própria entidade. Escrever status é privilégio exclusivo
+        // do AtendimentoWorkflowService, e abrir um atendimento não é transição.
 
         atendimento = atendimentoRepository.save(atendimento);
 
@@ -162,31 +168,4 @@ public class AtendimentoService {
         return supervisor;
     }
 
-    /**
-     * Converte a página inteira com duas consultas de apoio — termos e seções —
-     * em vez de duas por atendimento.
-     */
-    private List<AtendimentoResponse> converterEmLote(List<Atendimento> atendimentos, Usuario usuario) {
-        if (atendimentos.isEmpty()) {
-            return List.of();
-        }
-
-        List<Long> atendimentoIds = atendimentos.stream().map(Atendimento::getId).toList();
-        List<Long> pacienteIds = atendimentos.stream().map(a -> a.getPaciente().getId()).distinct().toList();
-
-        Set<Long> comTermo = Set.copyOf(termoConsentimentoRepository.idsComAceite(pacienteIds));
-        Map<Long, Set<SecaoProntuario>> secoes = secoesPreenchidasService.porAtendimento(atendimentoIds);
-
-        return atendimentos.stream()
-                .map(atendimento -> AtendimentoResponse.de(
-                        atendimento,
-                        comTermo.contains(atendimento.getPaciente().getId()),
-                        atendimentoEditavelValidator.editavelPor(atendimento, usuario),
-                        secoes.getOrDefault(atendimento.getId(), Set.of())))
-                .toList();
-    }
-
-    private boolean possuiTermo(Long pacienteId) {
-        return termoConsentimentoRepository.existsByPacienteIdAndAceiteLgpdTrue(pacienteId);
-    }
 }

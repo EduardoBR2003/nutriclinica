@@ -45,6 +45,15 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!--
+            AOP: sustenta o aspecto de auditoria. O @Transactional já funcionava
+            sem esta dependência, por proxy do próprio core; advice declarado com
+            @Aspect precisa do aspectjweaver que ela traz.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
 
         <!-- JWT: api em compile, impl e jackson apenas em runtime. -->
         <dependency>

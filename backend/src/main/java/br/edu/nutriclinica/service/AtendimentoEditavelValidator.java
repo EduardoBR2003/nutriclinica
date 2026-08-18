@@ -88,11 +88,7 @@ public class AtendimentoEditavelValidator {
     public Atendimento exigirEditavel(Long atendimentoId, Usuario usuario) {
         Atendimento atendimento = carregarParaLeitura(atendimentoId, usuario);
 
-        if (usuario.getPerfil() != Perfil.ESTAGIARIO
-                || !atendimento.getEstagiario().getId().equals(usuario.getId())) {
-            throw new SemPermissaoException(
-                    "Somente o estagiário responsável pode editar este prontuário.");
-        }
+        exigirEstagiarioDono(atendimento, usuario);
 
         if (!STATUS_EDITAVEIS.contains(atendimento.getStatus())) {
             throw new TransicaoInvalidaException(
@@ -100,6 +96,49 @@ public class AtendimentoEditavelValidator {
                             + " e não pode ser editado. Só é editável em RASCUNHO ou DEVOLVIDO_PARA_CORRECAO.");
         }
         return atendimento;
+    }
+
+    /**
+     * Exige que o usuário seja o estagiário dono do atendimento.
+     *
+     * <p>Separado de {@link #exigirEditavel} porque submeter também é privativo
+     * do dono, mas não é edição: as duas operações compartilham exatamente esta
+     * regra, e ela precisa ter uma definição só. Recebe o atendimento já
+     * carregado — quem chega aqui já passou pelo escopo.
+     *
+     * @throws SemPermissaoException se o usuário não é o estagiário dono (403)
+     */
+    public void exigirEstagiarioDono(Atendimento atendimento, Usuario usuario) {
+        if (usuario.getPerfil() != Perfil.ESTAGIARIO
+                || !atendimento.getEstagiario().getId().equals(usuario.getId())) {
+            throw new SemPermissaoException(
+                    "Somente o estagiário responsável pode editar este prontuário.");
+        }
+    }
+
+    /**
+     * Exige que o usuário seja o supervisor <b>designado</b> para o atendimento.
+     *
+     * <p>Avaliar e comentar são atos de quem foi designado, não de qualquer
+     * supervisor da casa. O ADMIN também é recusado: ele gerencia usuários e
+     * vínculos, não dá nota.
+     *
+     * <p>Atenção ao 403 <i>versus</i> 404 aqui. O escopo do supervisor
+     * ({@code ESCOPO_SUPERVISOR}) enxerga tanto os atendimentos em que ele é o
+     * designado quanto os dos estagiários que orienta. Um supervisor sem vínculo
+     * nenhum nem chega a este método: {@link #carregarParaLeitura} já respondeu
+     * 404, e é assim que deve ser. O 403 fica para quem enxerga o prontuário
+     * legitimamente mas não é o responsável por avaliá-lo — aí recusar não
+     * revela nada que ele já não pudesse ver.
+     *
+     * @throws SemPermissaoException se o usuário não é o supervisor designado (403)
+     */
+    public void exigirSupervisorDesignado(Atendimento atendimento, Usuario usuario) {
+        if (usuario.getPerfil() != Perfil.SUPERVISOR
+                || !atendimento.getSupervisor().getId().equals(usuario.getId())) {
+            throw new SemPermissaoException(
+                    "Somente o supervisor designado para este atendimento pode revisá-lo.");
+        }
     }
 
     /**

@@ -27,4 +27,12 @@ public interface RecordatorioRefeicaoRepository extends JpaRepository<Recordator
             order by r.ordem
             """)
     List<RecordatorioRefeicao> comItens(@Param("atendimentoId") Long atendimentoId);
+
+    /**
+     * Se o recordatório tem ao menos uma refeição — a exigência da submissão.
+     *
+     * <p>É um {@code count} no banco em vez de materializar as refeições e os
+     * itens só para perguntar se a lista está vazia.
+     */
+    boolean existsByAtendimentoId(Long atendimentoId);
 }

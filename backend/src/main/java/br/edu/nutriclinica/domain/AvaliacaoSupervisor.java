@@ -6,7 +6,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -44,7 +43,18 @@ public class AvaliacaoSupervisor {
     @Column(name = "resultado", length = 30)
     private ResultadoAvaliacao resultado;
 
-    @CreationTimestamp
+    /**
+     * Instante em que o supervisor fechou a revisão.
+     *
+     * <p>Sem {@code @CreationTimestamp} de propósito: ele só dispara no INSERT, e
+     * a mesma linha é reaproveitada quando um atendimento devolvido volta e é
+     * avaliado de novo — o carimbo congelaria no primeiro parecer e o
+     * {@code avaliadoEm} do contrato passaria a mentir.
+     *
+     * <p>Quem o preenche é o {@code AvaliacaoService}, com o mesmo instante que
+     * a transição gravou em {@code Atendimento.avaliadoEm}. Um relógio só: os
+     * dois campos são iguais por construção.
+     */
     @Column(name = "avaliado_em", nullable = false)
     private LocalDateTime avaliadoEm;
 

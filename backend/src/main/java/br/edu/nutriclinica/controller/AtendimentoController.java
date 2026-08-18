@@ -6,6 +6,7 @@ import br.edu.nutriclinica.dto.AtendimentoRequest;
 import br.edu.nutriclinica.dto.AtendimentoResponse;
 import br.edu.nutriclinica.dto.PaginaResponse;
 import br.edu.nutriclinica.service.AtendimentoService;
+import br.edu.nutriclinica.service.AtendimentoWorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -38,9 +39,12 @@ public class AtendimentoController {
     private static final int TAMANHO_MAXIMO = 100;
 
     private final AtendimentoService atendimentoService;
+    private final AtendimentoWorkflowService atendimentoWorkflowService;
 
-    public AtendimentoController(AtendimentoService atendimentoService) {
+    public AtendimentoController(AtendimentoService atendimentoService,
+                                 AtendimentoWorkflowService atendimentoWorkflowService) {
         this.atendimentoService = atendimentoService;
+        this.atendimentoWorkflowService = atendimentoWorkflowService;
     }
 
     @GetMapping
@@ -73,6 +77,17 @@ public class AtendimentoController {
     @Operation(summary = "Retorna o prontuário completo")
     public ResponseEntity<AtendimentoCompletoResponse> detalhar(@PathVariable Long id) {
         return ResponseEntity.ok(atendimentoService.detalhar(id));
+    }
+
+    @PostMapping("/{id}/submeter")
+    @PreAuthorize("hasRole('ESTAGIARIO')")
+    @Operation(summary = "Envia o atendimento para revisão do supervisor",
+            description = "Transição RASCUNHO ou DEVOLVIDO_PARA_CORRECAO → EM_REVISAO. "
+                    + "Responde 409 TRANSICAO_INVALIDA se o status atual não admite a submissão "
+                    + "e 409 SECOES_INCOMPLETAS, com o array `campos` preenchido, se falta "
+                    + "conteúdo obrigatório no prontuário.")
+    public ResponseEntity<AtendimentoResponse> submeter(@PathVariable Long id) {
+        return ResponseEntity.ok(atendimentoWorkflowService.submeter(id));
     }
 
     private int tamanho(int size) {

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -322,7 +323,7 @@ class PacienteControllerIT extends AbstractIntegrationTest {
                 usuarioPorEmail(SUPERVISOR), dataConsulta, StatusAtendimento.RASCUNHO);
         aferir(atendimento, pesoKg, token);
 
-        atendimento.setStatus(StatusAtendimento.APROVADO);
+        atendimento.aplicarTransicao(StatusAtendimento.APROVADO, LocalDateTime.now());
         atendimentoRepository.save(atendimento);
     }
 

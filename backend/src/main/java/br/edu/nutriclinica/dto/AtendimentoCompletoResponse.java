@@ -28,7 +28,9 @@ import java.util.List;
  * refeições e um recordatório não preenchido são o mesmo estado, e a tela lê
  * essa ausência para saber o que ainda falta.
  *
- * <p>{@code avaliacao} ainda não aparece: é do bloco de revisão.
+ * <p>{@code avaliacao} não é seção do prontuário, é o veredito sobre ele — por
+ * isso entra ao lado das seções, e não dentro delas. Fica ausente enquanto o
+ * supervisor não avaliou, e some do JSON pela mesma regra dos campos nulos.
  *
  * <p>Os campos base são repetidos em vez de aninhados porque o contrato os põe
  * no nível de cima (`allOf`). A montagem parte de um {@link AtendimentoResponse}
@@ -58,7 +60,8 @@ public record AtendimentoCompletoResponse(
         ComportamentoAlimentarResponse comportamentoAlimentar,
         DiagnosticoPesResponse diagnostico,
         PlanoIntervencaoResponse plano,
-        List<MetaResponse> metas) {
+        List<MetaResponse> metas,
+        AvaliacaoResponse avaliacao) {
 
     /** As onze seções, na ordem em que o contrato e o formulário as apresentam. */
     public record Secoes(
@@ -75,7 +78,9 @@ public record AtendimentoCompletoResponse(
             List<MetaResponse> metas) {
     }
 
-    public static AtendimentoCompletoResponse de(AtendimentoResponse base, Secoes secoes) {
+    public static AtendimentoCompletoResponse de(AtendimentoResponse base,
+                                                 Secoes secoes,
+                                                 AvaliacaoResponse avaliacao) {
         return new AtendimentoCompletoResponse(
                 base.id(),
                 base.numeroProntuario(),
@@ -98,7 +103,8 @@ public record AtendimentoCompletoResponse(
                 secoes.comportamentoAlimentar(),
                 secoes.diagnostico(),
                 secoes.plano(),
-                ouNulo(secoes.metas()));
+                ouNulo(secoes.metas()),
+                avaliacao);
     }
 
     /** Lista vazia é seção não preenchida, e seção não preenchida não vai ao JSON. */
