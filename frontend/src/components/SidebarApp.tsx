@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router'
 
 import { Avatar } from '@/components/Avatar'
+import { LogoMarca } from '@/components/LogoMarca'
 import { useAuth } from '@/hooks/useAuth'
 import { useRevisoesPendentes } from '@/hooks/useRevisoes'
 import { PERFIL } from '@/lib/rotulos'
@@ -48,9 +49,7 @@ export function SidebarApp() {
   return (
     <aside className="bg-surface border-line-card sticky top-0 flex h-svh flex-col gap-[22px] self-start border-r px-4 py-[22px]">
       <div className="flex items-center gap-2.5 px-2">
-        <span className="bg-brand inline-flex size-[34px] items-center justify-center rounded-[11px] text-2xl font-bold text-white">
-          N
-        </span>
+        <LogoMarca className="size-[34px]" />
         <span className="flex flex-col leading-tight">
           <span className="text-xl font-bold tracking-snug">NutriClinica</span>
           <span className="text-ink-muted text-xs">{SUBTITULO[perfil]}</span>

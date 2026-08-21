@@ -4,6 +4,7 @@ import { Link, Navigate } from 'react-router'
 import { z } from 'zod'
 
 import { Botao } from '@/components/Botao'
+import { Logo } from '@/components/Logo'
 import { useAuth } from '@/hooks/useAuth'
 import { useCadastro } from '@/hooks/useUsuarios'
 import { aplicarErrosDeCampo, mensagemDeErro } from '@/lib/erros'
@@ -72,9 +73,7 @@ export default function Cadastro() {
     <main className="grid min-h-svh place-items-center px-5 py-10">
       <div className="w-[min(460px,100%)]">
         <div className="mb-[22px] flex items-center gap-3">
-          <span className="bg-brand inline-flex size-[38px] items-center justify-center rounded-xl text-3xl font-bold text-white">
-            N
-          </span>
+          <Logo className="h-[58px]" />
           <span className="text-3xl font-bold tracking-snug">NutriClinica</span>
         </div>
 

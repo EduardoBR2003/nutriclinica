@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { z } from 'zod'
 
 import { Botao } from '@/components/Botao'
+import { Logo } from '@/components/Logo'
 import { useAuth } from '@/hooks/useAuth'
 import { useLogin } from '@/hooks/useLogin'
 import { aplicarErrosDeCampo, extrairErro } from '@/lib/erros'
@@ -64,9 +65,7 @@ export default function Login() {
     <main className="grid min-h-svh place-items-center px-5 py-10">
       <div className="w-[min(420px,100%)]">
         <div className="mb-[22px] flex items-center gap-3">
-          <span className="bg-brand inline-flex size-[38px] items-center justify-center rounded-xl text-3xl font-bold text-white">
-            N
-          </span>
+          <Logo className="h-[58px]" />
           <span className="text-3xl font-bold tracking-snug">NutriClinica</span>
         </div>
 

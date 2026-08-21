@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="182 45 320 210" role="img">
+  <title>NutriClinica — Clínica de Nutrição</title>
+  <desc>Prato circular com folha e linha de pulso ao centro, ladeado por garfo e colher.</desc>
+
+  <circle cx="340" cy="150" r="88" fill="none" stroke="#639922" stroke-width="2.5"/>
+  <circle cx="340" cy="150" r="78" fill="none" stroke="#639922" stroke-width="0.8" opacity="0.5"/>
+
+  <path d="M340 88 C376 112 382 146 340 172 C298 146 304 112 340 88 Z" fill="#97C459" stroke="#4F8A1D" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M340 170 V94" fill="none" stroke="#2F5A0E" stroke-width="1.4" stroke-linecap="round" opacity="0.75"/>
+  <path d="M340 140 L322 124 M340 156 L358 140 M340 124 L326 112" fill="none" stroke="#2F5A0E" stroke-width="1.1" stroke-linecap="round" opacity="0.6"/>
+
+  <path d="M272 195 H310 L320 176 L332 214 L344 188 L354 195 H408" fill="none" stroke="#639922" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M200 96 V126 Q200 144 208 149 V206 Q208 214 212 214 Q216 214 216 206 V149 Q224 144 224 126 V96" fill="none" stroke="#639922" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M208 96 V128 M216 96 V128" fill="none" stroke="#639922" stroke-width="2.2" stroke-linecap="round"/>
+
+  <ellipse cx="470" cy="119" rx="15" ry="25" fill="none" stroke="#639922" stroke-width="2.2"/>
+  <path d="M470 144 V212" fill="none" stroke="#639922" stroke-width="2.2" stroke-linecap="round"/>
+</svg>
