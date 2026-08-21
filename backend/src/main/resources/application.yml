@@ -25,6 +25,10 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: false
 
+# O perfil dev fica no documento abaixo; o de produção mora em
+# application-prod.yml, separado por ser o único que lê o ambiente inteiro
+# sem default.
+
 app:
   jwt:
     # Sem default aqui de proposito: fora do perfil dev a aplicacao deve falhar
@@ -63,6 +67,17 @@ spring:
     activate:
       on-profile: dev
 
+    # O .env da raiz do monorepo entra como fonte de propriedades: é dele que
+    # saem DB_URL, DB_USERNAME e DB_PASSWORD quando se quer apontar o dev para
+    # outro banco (o Neon, por exemplo) sem editar este arquivo, que é
+    # versionado. Os dois caminhos cobrem rodar de /backend (mvnw) e da raiz
+    # (java -jar); ambos opcionais, então a ausência do .env não quebra nada.
+    # Variável de ambiente de verdade continua vencendo o .env, e entre os dois
+    # arquivos vence o último da lista.
+    import:
+      - optional:file:../.env[.properties]
+      - optional:file:./.env[.properties]
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/nutriclinica}
     username: ${DB_USERNAME:nutriclinica}
@@ -81,32 +96,3 @@ logging:
   level:
     br.edu.nutriclinica: DEBUG
     org.hibernate.SQL: DEBUG
-
----
-spring:
-  config:
-    activate:
-      on-profile: prod
-
-  # Em produção não há default: as variáveis de ambiente são obrigatórias.
-  jpa:
-    show-sql: false
-
-app:
-  # Administrador inicial, criado pelo AdminInicialRunner apenas se a tabela
-  # usuario estiver vazia. O default vazio existe para que a falta da variável
-  # vire uma mensagem de validação legível ("Defina ADMIN_EMAIL...") em vez do
-  # erro cru de placeholder não resolvido — em ambos os casos a aplicação
-  # recusa subir, que é o comportamento pedido.
-  admin:
-    email: ${ADMIN_EMAIL:}
-    senha: ${ADMIN_PASSWORD:}
-
-springdoc:
-  swagger-ui:
-    enabled: false
-
-logging:
-  level:
-    root: INFO
-    br.edu.nutriclinica: INFO
