@@ -1,32 +1,22 @@
 -- =============================================================
--- NutriClinica — Seed inicial de acesso
+-- NutriClinica — V2 (vazia por decisão de segurança)
 --
--- Um usuário de cada perfil, todos com a senha "senha123", e o vínculo
--- de supervisão entre o supervisor e o estagiário.
+-- Esta migration criava três usuários de demonstração com a senha "senha123",
+-- hash publicado neste repositório. Migration não distingue ambiente: o mesmo
+-- arquivo que semeia a base local roda no primeiro deploy, e essas contas
+-- entrariam em produção junto com o schema.
 --
--- O hash BCrypt abaixo foi gerado com BCryptPasswordEncoder (cost 10) e
--- confere com "senha123". Troque estas senhas antes de qualquer uso real.
+-- Para onde foi cada coisa:
+--   * usuários de demonstração  -> SeedDesenvolvimentoRunner (@Profile dev, it)
+--   * administrador de produção -> AdminInicialRunner (@Profile prod), que lê
+--     ADMIN_EMAIL e ADMIN_PASSWORD e só age com a tabela usuario vazia.
+--
+-- O arquivo continua existindo, e vazio, porque a versão 2 já consta do
+-- flyway_schema_history de bases criadas antes desta mudança. Apagá-lo faria o
+-- Flyway recusar a partida por migration aplicada e não resolvida.
+--
+-- Bases que aplicaram a versão anterior acusam divergência de checksum. Em
+-- desenvolvimento, o caminho é recriar o volume:
+--     docker compose down -v && docker compose up -d
+-- Preservando os dados, `flyway repair` reescreve o checksum registrado.
 -- =============================================================
-
-INSERT INTO usuario (nome, email, senha_hash, perfil, ativo) VALUES
-    ('Administrador do Sistema',
-     'admin@nutriclinica.edu.br',
-     '$2a$10$ppghIu4XhjdMoMfpR.n5rOaOVhcgTyADMIjM3Yiymp9utFNtx8fM6',
-     'ADMIN', TRUE),
-
-    ('Profa. Helena Duarte',
-     'supervisor@nutriclinica.edu.br',
-     '$2a$10$ppghIu4XhjdMoMfpR.n5rOaOVhcgTyADMIjM3Yiymp9utFNtx8fM6',
-     'SUPERVISOR', TRUE),
-
-    ('Marina Rocha',
-     'estagiario@nutriclinica.edu.br',
-     '$2a$10$ppghIu4XhjdMoMfpR.n5rOaOVhcgTyADMIjM3Yiymp9utFNtx8fM6',
-     'ESTAGIARIO', TRUE);
-
--- Ids resolvidos pelo e-mail para não depender da ordem da sequência.
-INSERT INTO vinculo_supervisao (supervisor_id, estagiario_id, ativo)
-SELECT s.id, e.id, TRUE
-FROM usuario s, usuario e
-WHERE s.email = 'supervisor@nutriclinica.edu.br'
-  AND e.email = 'estagiario@nutriclinica.edu.br';

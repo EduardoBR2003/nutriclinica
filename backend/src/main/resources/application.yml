@@ -92,6 +92,16 @@ spring:
   jpa:
     show-sql: false
 
+app:
+  # Administrador inicial, criado pelo AdminInicialRunner apenas se a tabela
+  # usuario estiver vazia. O default vazio existe para que a falta da variável
+  # vire uma mensagem de validação legível ("Defina ADMIN_EMAIL...") em vez do
+  # erro cru de placeholder não resolvido — em ambos os casos a aplicação
+  # recusa subir, que é o comportamento pedido.
+  admin:
+    email: ${ADMIN_EMAIL:}
+    senha: ${ADMIN_PASSWORD:}
+
 springdoc:
   swagger-ui:
     enabled: false

@@ -42,6 +42,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * O container é estático e não é fechado de propósito: o Testcontainers o reaproveita
  * entre as classes de teste e o encerra ao fim da JVM (Ryuk).
  *
+ * O perfil "it" está na lista do SeedDesenvolvimentoRunner, e é dele que vêm os
+ * três usuários abaixo — o seed saiu do Flyway para não alcançar produção.
+ *
  * As fixtures abaixo montam os dados direto pelos repositories, sem passar pela
  * API: o que cada teste quer exercitar é o endpoint sob teste, não a construção
  * do cenário. O banco é compartilhado entre as classes, então nenhum teste deve
@@ -52,13 +55,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("it")
 public abstract class AbstractIntegrationTest {
 
-    /** Usuários do V2__seed.sql. O supervisor já orienta o estagiário. */
+    /** Usuários do SeedDesenvolvimentoRunner. O supervisor já orienta o estagiário. */
     protected static final String ESTAGIARIO = "estagiario@nutriclinica.edu.br";
     protected static final String SUPERVISOR = "supervisor@nutriclinica.edu.br";
     protected static final String ADMIN = "admin@nutriclinica.edu.br";
     protected static final String SENHA = "senha123";
 
-    /** Hash BCrypt de "senha123", o mesmo do seed: usuários criados aqui também logam. */
+    /** Hash BCrypt de "senha123", a mesma senha do seed: usuários criados aqui também logam. */
     protected static final String HASH_SENHA123 = "$2a$10$ppghIu4XhjdMoMfpR.n5rOaOVhcgTyADMIjM3Yiymp9utFNtx8fM6";
 
     /** Mantém e-mails e números de prontuário únicos sem depender da ordem dos testes. */
