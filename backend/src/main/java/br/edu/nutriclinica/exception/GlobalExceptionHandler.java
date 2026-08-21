@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
 
@@ -98,6 +99,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErroResponse> tratarNaoEncontrado(Exception excecao) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ErroResponse.de("NAO_ENCONTRADO", excecao.getMessage()));
+    }
+
+    /**
+     * Caminho que passou pelo filtro de segurança (rota pública) mas não existe
+     * no MVC. O caso concreto é o Swagger em produção: {@code /swagger-ui.html}
+     * e {@code /v3/api-docs} continuam liberados no SecurityConfig, e com o
+     * springdoc desligado eles chegariam à rede de segurança lá embaixo — 500 e
+     * um stack trace no log a cada varredura de robô, para uma rota que
+     * simplesmente não está no ar. A mensagem é fixa: a da exceção nomeia o
+     * recurso estático procurado.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErroResponse> tratarRecursoInexistente(NoResourceFoundException excecao) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErroResponse.de("NAO_ENCONTRADO", "Recurso não encontrado."));
     }
 
     /**
