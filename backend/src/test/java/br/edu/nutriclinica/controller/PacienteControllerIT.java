@@ -2,6 +2,7 @@ package br.edu.nutriclinica.controller;
 
 import br.edu.nutriclinica.domain.Atendimento;
 import br.edu.nutriclinica.domain.Paciente;
+import br.edu.nutriclinica.domain.TermoConsentimento;
 import br.edu.nutriclinica.domain.Usuario;
 import br.edu.nutriclinica.domain.enums.Perfil;
 import br.edu.nutriclinica.domain.enums.Sexo;
@@ -14,6 +15,7 @@ import org.springframework.http.MediaType;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -184,14 +186,14 @@ class PacienteControllerIT extends AbstractIntegrationTest {
                                 {
                                   "aceiteLgpd": true,
                                   "autorizaUsoPesquisa": true,
-                                  "dataAceite": "2025-02-10",
                                   "observacoes": "Termo assinado presencialmente."
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.aceiteLgpd").value(true))
                 .andExpect(jsonPath("$.autorizaUsoPesquisa").value(true))
-                .andExpect(jsonPath("$.dataAceite").value("2025-02-10"))
+                // A data do aceite é o dia de hoje, carimbado pelo servidor.
+                .andExpect(jsonPath("$.dataAceite").value(LocalDate.now().toString()))
                 // registradoPor é o usuário autenticado, não veio no corpo.
                 .andExpect(jsonPath("$.registradoPor").value("Marina Rocha"));
 
@@ -209,7 +211,7 @@ class PacienteControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(put("/api/pacientes/{id}/termo", paciente.getId())
                         .header("Authorization", "Bearer " + token(ESTAGIARIO))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"aceiteLgpd\":false,\"dataAceite\":\"2025-02-10\"}"))
+                        .content("{\"aceiteLgpd\":false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.aceiteLgpd").value(false));
 
@@ -229,16 +231,47 @@ class PacienteControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(put("/api/pacientes/{id}/termo", paciente.getId())
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"aceiteLgpd\":false,\"dataAceite\":\"2025-01-05\"}"))
+                        .content("{\"aceiteLgpd\":false}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(put("/api/pacientes/{id}/termo", paciente.getId())
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"aceiteLgpd\":true,\"dataAceite\":\"2025-03-05\"}"))
+                        .content("{\"aceiteLgpd\":true,\"observacoes\":\"Assinado hoje.\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.aceiteLgpd").value(true))
-                .andExpect(jsonPath("$.dataAceite").value("2025-03-05"));
+                .andExpect(jsonPath("$.aceiteLgpd").value(true));
+
+        // Uma linha só: o segundo PUT atualizou, não inseriu.
+        assertThat(termoConsentimentoRepository.findByPacienteId(paciente.getId())).isPresent();
+    }
+
+    @Test
+    @DisplayName("a data do aceite é imutável: reeditar o termo não reescreve a assinatura")
+    void dataDoAceiteNaoMuda() throws Exception {
+        Paciente paciente = novoPaciente(usuarioPorEmail(ESTAGIARIO));
+        String token = token(ESTAGIARIO);
+
+        mockMvc.perform(put("/api/pacientes/{id}/termo", paciente.getId())
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"aceiteLgpd\":true}"))
+                .andExpect(status().isOk());
+
+        // Envelhece o registro no banco para separar "hoje" de "dia do aceite":
+        // sem isto, as duas datas coincidiriam e o teste não provaria nada.
+        LocalDate assinatura = LocalDate.now().minusMonths(6);
+        TermoConsentimento termo = termoConsentimentoRepository
+                .findByPacienteId(paciente.getId()).orElseThrow();
+        termo.setDataAceite(assinatura);
+        termoConsentimentoRepository.save(termo);
+
+        mockMvc.perform(put("/api/pacientes/{id}/termo", paciente.getId())
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"aceiteLgpd\":true,\"autorizaUsoPesquisa\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autorizaUsoPesquisa").value(true))
+                .andExpect(jsonPath("$.dataAceite").value(assinatura.toString()));
     }
 
     @Test
@@ -249,7 +282,7 @@ class PacienteControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(put("/api/pacientes/{id}/termo", paciente.getId())
                         .header("Authorization", "Bearer " + token(ESTAGIARIO))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"dataAceite\":\"2025-02-10\"}"))
+                        .content("{\"observacoes\":\"Paciente assinou.\"}"))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.campos[0].campo").value("aceiteLgpd"));
     }
@@ -263,7 +296,7 @@ class PacienteControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(put("/api/pacientes/{id}/termo", paciente.getId())
                         .header("Authorization", "Bearer " + token(ESTAGIARIO))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"aceiteLgpd\":true,\"dataAceite\":\"2025-02-10\"}"))
+                        .content("{\"aceiteLgpd\":true}"))
                 .andExpect(status().isNotFound());
     }
 

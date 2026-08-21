@@ -85,12 +85,40 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Usuario' }
 
+  /api/auth/cadastro:
+    post:
+      tags: [Autenticação]
+      security: []
+      summary: Auto-cadastro de estagiário ou supervisor
+      description: |
+        Cadastro público, feito pela própria pessoa na tela de entrada. A conta
+        nasce **inativa** (`ativo: false`) e só entra na plataforma depois que um
+        ADMIN a ativa em `/api/usuarios/{id}` — por isso a resposta é o usuário
+        criado, e não um par de tokens.
+
+        `perfil` aceita apenas ESTAGIARIO ou SUPERVISOR: conta de administrador
+        só nasce pela mão de outro administrador. E-mail já cadastrado responde
+        422 com `campos[0].campo = email`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CadastroRequest' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usuario' }
+        '422': { $ref: '#/components/responses/ErroValidacao' }
+
   # ---------------- USUÁRIOS (ADMIN) ----------------
 
   /api/usuarios:
     get:
       tags: [Usuários]
       summary: Lista usuários
+      description: Exclusivo do ADMIN.
       parameters:
         - { in: query, name: perfil, schema: { $ref: '#/components/schemas/Perfil' } }
         - { in: query, name: page, schema: { type: integer, default: 0 } }
@@ -104,6 +132,10 @@ paths:
     post:
       tags: [Usuários]
       summary: Cria usuário
+      description: |
+        Cadastro manual pelo ADMIN. Diferente do auto-cadastro, aqui o usuário
+        nasce ativo (a menos que `ativo: false`) e qualquer perfil é permitido.
+        `senha` é obrigatória na criação.
       requestBody:
         required: true
         content:
@@ -116,6 +148,24 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Usuario' }
         '422': { $ref: '#/components/responses/ErroValidacao' }
+
+  /api/usuarios/supervisores:
+    get:
+      tags: [Usuários]
+      summary: Supervisores que orientam o estagiário autenticado
+      description: |
+        A lista que alimenta o select de supervisor ao abrir um atendimento.
+        Traz apenas supervisores **ativos** com vínculo ativo com quem chamou —
+        os mesmos que `POST /api/atendimentos` aceita. Lista vazia significa que
+        o ADMIN ainda não criou nenhum vínculo para este estagiário.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Usuario' }
 
   /api/usuarios/{id}:
     parameters: [{ $ref: '#/components/parameters/Id' }]
@@ -146,9 +196,31 @@ paths:
 
   /api/usuarios/{id}/vinculos:
     parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Usuários]
+      summary: Estagiários hoje orientados por um supervisor
+      description: |
+        Estado atual do vínculo, para a tela de vínculos abrir já marcada. Sem
+        isto, salvar a tela apagaria em silêncio os vínculos que ela não exibiu.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Usuario' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
     put:
       tags: [Usuários]
       summary: Define os estagiários orientados por um supervisor
+      description: |
+        Substitui o conjunto: quem está na lista fica vinculado, quem saiu é
+        desativado. O vínculo desativado não é apagado — os atendimentos antigos
+        continuam apontando para ele.
+
+        422 se o `{id}` não for de um SUPERVISOR ou se algum `estagiarioIds` não
+        for de um ESTAGIARIO.
       requestBody:
         required: true
         content:
@@ -161,6 +233,8 @@ paths:
                   items: { type: integer, format: int64 }
       responses:
         '204': { description: Atualizado }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+        '422': { $ref: '#/components/responses/ErroValidacao' }
 
   # ---------------- PACIENTES ----------------
 
@@ -771,9 +845,26 @@ components:
       properties:
         nome:   { type: string, minLength: 3, maxLength: 150 }
         email:  { type: string, format: email }
-        senha:  { type: string, minLength: 8 }
+        senha:
+          type: string
+          minLength: 8
+          description: |
+            Obrigatória na criação. Na atualização, ausente ou vazia mantém a
+            senha atual — o hash nunca sai do servidor para voltar num PUT.
         perfil: { $ref: '#/components/schemas/Perfil' }
         ativo:  { type: boolean, default: true }
+
+    CadastroRequest:
+      type: object
+      required: [nome, email, senha, perfil]
+      properties:
+        nome:  { type: string, minLength: 3, maxLength: 150 }
+        email: { type: string, format: email }
+        senha: { type: string, minLength: 8 }
+        perfil:
+          type: string
+          enum: [ESTAGIARIO, SUPERVISOR]
+          description: ADMIN não se auto-cadastra.
 
     Paciente:
       type: object
@@ -804,17 +895,23 @@ components:
       properties:
         aceiteLgpd:          { type: boolean }
         autorizaUsoPesquisa: { type: boolean }
-        dataAceite:          { type: string, format: date }
+        dataAceite:
+          type: string
+          format: date
+          readOnly: true
+          description: |
+            Carimbada pelo servidor no dia em que o termo foi registrado, e
+            imutável a partir daí — reeditar o termo não reescreve a data da
+            assinatura.
         registradoPor:       { type: string }
         observacoes:         { type: string }
 
     TermoConsentimentoRequest:
       type: object
-      required: [aceiteLgpd, dataAceite]
+      required: [aceiteLgpd]
       properties:
         aceiteLgpd:          { type: boolean }
         autorizaUsoPesquisa: { type: boolean, default: false }
-        dataAceite:          { type: string, format: date }
         observacoes:         { type: string }
 
     Atendimento:

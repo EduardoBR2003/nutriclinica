@@ -128,6 +128,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/cadastro": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Auto-cadastro de estagiário ou supervisor
+         * @description Cadastro público, feito pela própria pessoa na tela de entrada. A conta
+         *     nasce **inativa** (`ativo: false`) e só entra na plataforma depois que um
+         *     ADMIN a ativa em `/api/usuarios/{id}` — por isso a resposta é o usuário
+         *     criado, e não um par de tokens.
+         *
+         *     `perfil` aceita apenas ESTAGIARIO ou SUPERVISOR: conta de administrador
+         *     só nasce pela mão de outro administrador. E-mail já cadastrado responde
+         *     422 com `campos[0].campo = email`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CadastroRequest"];
+                };
+            };
+            responses: {
+                /** @description Criado */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Usuario"];
+                    };
+                };
+                422: components["responses"]["ErroValidacao"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/usuarios": {
         parameters: {
             query?: never;
@@ -135,7 +186,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lista usuários */
+        /**
+         * Lista usuários
+         * @description Exclusivo do ADMIN.
+         */
         get: {
             parameters: {
                 query?: {
@@ -161,7 +215,12 @@ export interface paths {
             };
         };
         put?: never;
-        /** Cria usuário */
+        /**
+         * Cria usuário
+         * @description Cadastro manual pelo ADMIN. Diferente do auto-cadastro, aqui o usuário
+         *     nasce ativo (a menos que `ativo: false`) e qualquer perfil é permitido.
+         *     `senha` é obrigatória na criação.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -187,6 +246,48 @@ export interface paths {
                 422: components["responses"]["ErroValidacao"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/usuarios/supervisores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Supervisores que orientam o estagiário autenticado
+         * @description A lista que alimenta o select de supervisor ao abrir um atendimento.
+         *     Traz apenas supervisores **ativos** com vínculo ativo com quem chamou —
+         *     os mesmos que `POST /api/atendimentos` aceita. Lista vazia significa que
+         *     o ADMIN ainda não criou nenhum vínculo para este estagiário.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Usuario"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -269,8 +370,43 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
-        /** Define os estagiários orientados por um supervisor */
+        /**
+         * Estagiários hoje orientados por um supervisor
+         * @description Estado atual do vínculo, para a tela de vínculos abrir já marcada. Sem
+         *     isto, salvar a tela apagaria em silêncio os vínculos que ela não exibiu.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Usuario"][];
+                    };
+                };
+                404: components["responses"]["NaoEncontrado"];
+            };
+        };
+        /**
+         * Define os estagiários orientados por um supervisor
+         * @description Substitui o conjunto: quem está na lista fica vinculado, quem saiu é
+         *     desativado. O vínculo desativado não é apagado — os atendimentos antigos
+         *     continuam apontando para ele.
+         *
+         *     422 se o `{id}` não for de um SUPERVISOR ou se algum `estagiarioIds` não
+         *     for de um ESTAGIARIO.
+         */
         put: {
             parameters: {
                 query?: never;
@@ -295,6 +431,8 @@ export interface paths {
                     };
                     content?: never;
                 };
+                404: components["responses"]["NaoEncontrado"];
+                422: components["responses"]["ErroValidacao"];
             };
         };
         post?: never;
@@ -1468,10 +1606,25 @@ export interface components {
             nome: string;
             /** Format: email */
             email: string;
+            /**
+             * @description Obrigatória na criação. Na atualização, ausente ou vazia mantém a
+             *     senha atual — o hash nunca sai do servidor para voltar num PUT.
+             */
             senha?: string;
             perfil: components["schemas"]["Perfil"];
             /** @default true */
             ativo: boolean;
+        };
+        CadastroRequest: {
+            nome: string;
+            /** Format: email */
+            email: string;
+            senha: string;
+            /**
+             * @description ADMIN não se auto-cadastra.
+             * @enum {string}
+             */
+            perfil: "ESTAGIARIO" | "SUPERVISOR";
         };
         Paciente: {
             /** Format: int64 */
@@ -1504,8 +1657,13 @@ export interface components {
         TermoConsentimento: {
             aceiteLgpd?: boolean;
             autorizaUsoPesquisa?: boolean;
-            /** Format: date */
-            dataAceite?: string;
+            /**
+             * Format: date
+             * @description Carimbada pelo servidor no dia em que o termo foi registrado, e
+             *     imutável a partir daí — reeditar o termo não reescreve a data da
+             *     assinatura.
+             */
+            readonly dataAceite?: string;
             registradoPor?: string;
             observacoes?: string;
         };
@@ -1513,8 +1671,6 @@ export interface components {
             aceiteLgpd: boolean;
             /** @default false */
             autorizaUsoPesquisa: boolean;
-            /** Format: date */
-            dataAceite: string;
             observacoes?: string;
         };
         Atendimento: {

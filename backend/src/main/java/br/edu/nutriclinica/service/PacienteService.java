@@ -19,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -114,6 +115,12 @@ public class PacienteService {
      *
      * <p>{@code registradoPor} é sempre o usuário autenticado: quem registrou o
      * consentimento é dado de auditoria de LGPD, não algo que o cliente escolhe.
+     *
+     * <p>{@code dataAceite} segue a mesma lógica, e vai um passo além: é o dia em
+     * que o termo foi registrado, carimbado pelo servidor, e só é escrito uma vez.
+     * Reeditar o termo — corrigir uma observação, trocar a autorização de uso em
+     * pesquisa — não move a data da assinatura, que é o que dá ao registro valor
+     * de prova.
      */
     @Transactional
     public TermoConsentimentoResponse salvarTermo(Long pacienteId, TermoConsentimentoRequest requisicao) {
@@ -129,9 +136,12 @@ public class PacienteService {
 
         termo.setAceiteLgpd(requisicao.aceiteLgpd());
         termo.setAutorizaUsoPesquisa(requisicao.autorizaUsoPesquisaOuFalso());
-        termo.setDataAceite(requisicao.dataAceite());
         termo.setObservacoes(requisicao.observacoes());
         termo.setRegistradoPor(usuario);
+
+        if (termo.getDataAceite() == null) {
+            termo.setDataAceite(LocalDate.now());
+        }
 
         return TermoConsentimentoResponse.de(termoConsentimentoRepository.save(termo));
     }

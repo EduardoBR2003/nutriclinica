@@ -28,7 +28,8 @@ import java.util.List;
 /**
  * API stateless autenticada por JWT no header Authorization.
  *
- * Rotas públicas: login, refresh, Swagger e health. Todo o resto exige token.
+ * Rotas públicas: login, refresh, auto-cadastro, Swagger e health. Todo o resto
+ * exige token.
  * As regras por perfil ficam nos serviços/controllers via @PreAuthorize
  * (@EnableMethodSecurity abaixo) — aqui só se define quem entra sem token.
  */
@@ -40,6 +41,7 @@ public class SecurityConfig {
     private static final String[] ROTAS_PUBLICAS = {
             "/api/auth/login",
             "/api/auth/refresh",
+            "/api/auth/cadastro",
             "/v3/api-docs",
             "/v3/api-docs/**",
             "/swagger-ui.html",

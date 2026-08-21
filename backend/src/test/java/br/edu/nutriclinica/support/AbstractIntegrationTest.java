@@ -105,7 +105,7 @@ public abstract class AbstractIntegrationTest {
     }
 
     protected Usuario usuarioPorEmail(String email) {
-        return usuarioRepository.findByEmail(email).orElseThrow();
+        return usuarioRepository.findByEmailIgnoreCase(email).orElseThrow();
     }
 
     // ------------------------------------------------------------------
