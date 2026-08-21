@@ -1,58 +1,42 @@
-import { NavLink, Outlet } from 'react-router'
+import { useCallback, useMemo, useState } from 'react'
+import { Outlet } from 'react-router'
 
-import { Button } from '@/components/ui/button'
+import { CabecalhoApp } from '@/components/CabecalhoApp'
+import { SidebarApp } from '@/components/SidebarApp'
 import { useAuth } from '@/hooks/useAuth'
-import { cn } from '@/lib/utils'
-import type { Perfil } from '@/types/dominio'
+import { BuscaContext } from '@/lib/buscaContext'
 
-const LINKS: { para: string; rotulo: string; perfis: readonly Perfil[] }[] = [
-  { para: '/pacientes', rotulo: 'Pacientes', perfis: ['ESTAGIARIO', 'SUPERVISOR', 'ADMIN'] },
-  { para: '/atendimentos', rotulo: 'Atendimentos', perfis: ['ESTAGIARIO', 'SUPERVISOR'] },
-  { para: '/revisoes', rotulo: 'Revisões', perfis: ['SUPERVISOR'] },
-  { para: '/admin/usuarios', rotulo: 'Usuários', perfis: ['ADMIN'] },
-]
-
+/** Casca do app: sidebar fixa de 250px + cabeçalho grudento + conteúdo. */
 export function LayoutApp() {
-  const { usuario, logout } = useAuth()
+  const { usuario } = useAuth()
+  const [termo, definirTermo] = useState('')
+  const [placeholder, definirPlaceholder] = useState<string | null>(null)
+
+  const registrar = useCallback((novo: string) => definirPlaceholder(novo), [])
+  const desregistrar = useCallback(() => {
+    definirPlaceholder(null)
+    definirTermo('')
+  }, [])
+
+  const busca = useMemo(
+    () => ({ termo, definirTermo, placeholder, registrar, desregistrar }),
+    [termo, placeholder, registrar, desregistrar],
+  )
+
+  // RotaProtegida já barrou o anônimo; aqui é só defesa.
   if (!usuario) return null
 
   return (
-    <div className="min-h-svh">
-      <header className="border-b">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-6 py-3">
-          <span className="font-heading font-semibold">NutriClinica</span>
-
-          <nav className="flex gap-4 text-sm">
-            {LINKS.filter((link) => link.perfis.includes(usuario.perfil)).map((link) => (
-              <NavLink
-                key={link.para}
-                to={link.para}
-                className={({ isActive }) =>
-                  cn(
-                    'hover:text-foreground transition-colors',
-                    isActive ? 'text-foreground font-medium' : 'text-muted-foreground',
-                  )
-                }
-              >
-                {link.rotulo}
-              </NavLink>
-            ))}
-          </nav>
-
-          <div className="ml-auto flex items-center gap-3">
-            <span className="text-muted-foreground text-sm">
-              {usuario.nome} · {usuario.perfil}
-            </span>
-            <Button variant="outline" size="sm" onClick={logout}>
-              Sair
-            </Button>
-          </div>
+    <BuscaContext value={busca}>
+      <div className="grid min-h-svh grid-cols-[250px_minmax(0,1fr)] items-start">
+        <SidebarApp />
+        <div className="min-w-0">
+          <CabecalhoApp />
+          <main className="flex flex-col gap-5 px-6 pt-6 pb-15">
+            <Outlet />
+          </main>
         </div>
-      </header>
-
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <Outlet />
-      </main>
-    </div>
+      </div>
+    </BuscaContext>
   )
 }

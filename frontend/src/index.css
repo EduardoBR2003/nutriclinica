@@ -1,96 +1,236 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
 
-@theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
-    --color-ring: var(--ring);
-    --color-input: var(--input);
-    --color-border: var(--border);
-    --color-destructive: var(--destructive);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-muted: var(--muted);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary: var(--secondary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-primary: var(--primary);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-popover: var(--popover);
-    --color-card-foreground: var(--card-foreground);
-    --color-card: var(--card);
-    --color-foreground: var(--foreground);
-    --color-background: var(--background);
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
+/* ───────────────────────────────────────────────────────────────────────────
+   Tokens do design aprovado (Claude Design · "Plataforma Nutricao App v2").
+
+   Precisam morar dentro de `@theme` — e não num `:root` cru — porque o Tailwind
+   v4 só gera utilitário (`bg-brand-tint`, `shadow-panel`, `text-2xs`) a partir
+   daqui. Os primitivos do shadcn são derivados destes valores mais abaixo.
+   ─────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* ─── Tipografia ─────────────────────────────────────────────────────── */
+  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-*: initial;
+  --text-2xs: 10.5px;  /* badge em caixa alta            */
+  --text-xs: 11px;     /* cabeçalho de tabela, tags      */
+  --text-sm: 11.5px;   /* metadados                      */
+  --text-base: 12.5px; /* rótulo de campo, texto de apoio*/
+  --text-md: 13px;     /* botão, comentário              */
+  --text-lg: 13.5px;   /* corpo, célula, input           */
+  --text-xl: 14px;     /* botão primário                 */
+  --text-2xl: 15px;    /* título de card lateral         */
+  --text-3xl: 16px;    /* título de card                 */
+  --text-4xl: 17px;    /* nome do paciente               */
+  --text-5xl: 21px;    /* título de tela de autenticação */
+  --text-6xl: 24px;    /* H1 de página                   */
+  --text-7xl: 26px;    /* número calculado               */
+  --text-8xl: 32px;    /* KPI                            */
+
+  --leading-*: initial;
+  --leading-tight: 1.25;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.55;
+  --leading-loose: 1.6;
+
+  --tracking-*: initial;
+  --tracking-tightest: -0.03em; /* números grandes   */
+  --tracking-tighter: -0.025em; /* H1                */
+  --tracking-tight: -0.02em;    /* H2                */
+  --tracking-snug: -0.01em;     /* título de card    */
+  --tracking-wide: 0.04em;      /* rótulo travado    */
+  --tracking-wider: 0.06em;     /* head de tabela    */
+  --tracking-widest: 0.08em;    /* grupo de seções   */
+
+  /* ─── Marca · sálvia ─────────────────────────────────────────────────── */
+  --color-brand: oklch(0.56 0.052 152);
+  --color-brand-hover: oklch(0.48 0.050 152);
+  --color-brand-strong: oklch(0.42 0.045 152);
+  --color-brand-text: oklch(0.38 0.045 152);
+  --color-brand-text-deep: oklch(0.32 0.040 152);
+  --color-brand-muted: oklch(0.74 0.045 152);
+  --color-brand-border: oklch(0.88 0.030 152);
+  --color-brand-surface: oklch(0.968 0.008 152);
+  --color-brand-tint: oklch(0.955 0.018 152);
+  --color-brand-tint-hover: oklch(0.93 0.026 152);
+  --color-brand-row: oklch(0.982 0.004 152);
+
+  /* ─── Ação · laranja (CTA, pendência, prazo) ─────────────────────────── */
+  --color-cta: oklch(0.60 0.145 47);
+  --color-cta-hover: oklch(0.54 0.145 45);
+  --color-cta-text: oklch(0.46 0.10 50);
+  --color-cta-text-deep: oklch(0.40 0.12 42);
+  --color-cta-border: oklch(0.88 0.06 58);
+  --color-cta-tint: oklch(0.965 0.028 62);
+
+  /* ─── Semânticas ─────────────────────────────────────────────────────── */
+  --color-success: oklch(0.55 0.10 155);
+  --color-success-text: oklch(0.42 0.09 155);
+  --color-success-border: oklch(0.86 0.055 155);
+  --color-success-tint: oklch(0.955 0.030 155);
+
+  --color-warning: oklch(0.60 0.145 47);
+  --color-warning-text: oklch(0.46 0.10 50);
+  --color-warning-border: oklch(0.88 0.06 58);
+  --color-warning-tint: oklch(0.965 0.028 62);
+
+  --color-danger: oklch(0.58 0.16 32);
+  --color-danger-text: oklch(0.42 0.13 40);
+  --color-danger-border: oklch(0.85 0.075 45);
+  --color-danger-tint: oklch(0.958 0.032 45);
+
+  --color-info: oklch(0.58 0.10 250);
+  --color-info-text: oklch(0.45 0.09 250);
+  --color-info-border: oklch(0.86 0.05 250);
+  --color-info-tint: oklch(0.958 0.025 250);
+
+  /* ─── Superfícies ────────────────────────────────────────────────────── */
+  --color-canvas: oklch(0.976 0.006 85);
+  --color-surface: #ffffff;
+  --color-surface-sunken: oklch(0.975 0.004 262);
+  --color-surface-alt: oklch(0.972 0.005 262);
+  --color-row-zebra: oklch(0.988 0.003 262);
+  --color-table-head: oklch(0.982 0.003 262);
+  --color-disabled: oklch(0.965 0.004 262);
+  --color-inverse: oklch(0.30 0.012 262);
+  --color-on-inverse: oklch(0.82 0.006 262);
+
+  /* ─── Texto ──────────────────────────────────────────────────────────── */
+  --color-ink: oklch(0.30 0.012 262);
+  --color-ink-body: oklch(0.34 0.012 262);
+  --color-ink-label: oklch(0.44 0.012 262);
+  --color-ink-soft: oklch(0.48 0.012 262);
+  --color-ink-muted: oklch(0.62 0.008 262);
+  --color-ink-subtle: oklch(0.64 0.008 262);
+  --color-ink-faint: oklch(0.70 0.008 262);
+
+  /* ─── Linhas ─────────────────────────────────────────────────────────── */
+  --color-line: oklch(0.90 0.005 262);
+  --color-line-card: oklch(0.925 0.004 262);
+  --color-line-subtle: oklch(0.945 0.004 262);
+  --color-line-faint: oklch(0.955 0.004 262);
+  --color-control-off: oklch(0.88 0.006 262);
+
+  /* ─── Raios ──────────────────────────────────────────────────────────── */
+  --radius-*: initial;
+  --radius-xs: 6px;   /* checkbox                     */
+  --radius-sm: 8px;   /* chip quadrado, botão pequeno */
+  --radius-md: 10px;  /* botão de tabela              */
+  --radius-lg: 11px;  /* input, item de navegação     */
+  --radius-xl: 12px;  /* botão principal, textarea    */
+  --radius-2xl: 14px; /* card interno                 */
+  --radius-3xl: 16px; /* card de métrica              */
+  --radius-4xl: 18px; /* card de conteúdo             */
+  --radius-5xl: 20px; /* modal                        */
+
+  /* ─── Sombras ────────────────────────────────────────────────────────── */
+  --shadow-*: initial;
+  --shadow-hairline: 0 1px 2px rgba(54, 57, 63, 0.03);
+  --shadow-card: 0 1px 2px rgba(54, 57, 63, 0.04);
+  --shadow-raised: 0 1px 2px rgba(54, 57, 63, 0.04), 0 14px 30px -26px rgba(54, 57, 63, 0.40);
+  --shadow-panel: 0 1px 2px rgba(54, 57, 63, 0.04), 0 18px 36px -30px rgba(54, 57, 63, 0.45);
+  --shadow-modal: 0 1px 2px rgba(54, 57, 63, 0.04), 0 24px 48px -32px rgba(54, 57, 63, 0.50);
+  --shadow-segment: 0 1px 3px rgba(54, 57, 63, 0.12);
+  --shadow-toast: 0 20px 40px -18px rgba(20, 24, 30, 0.60);
+  --shadow-cta: 0 8px 18px -10px rgba(150, 80, 30, 0.60);
+  --shadow-cta-sm: 0 6px 14px -8px rgba(150, 80, 30, 0.55);
 }
 
+/* Primitivos do shadcn. `inline` de propósito: assim o utilitário compila para
+   `var(--primary)` e o bloco `.dark` continua conseguindo trocar o valor. */
+@theme inline {
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+}
+
+/* Os primitivos saem da paleta do design, não da escala neutra padrão do
+   shadcn — é o que faz `bg-primary` e `bg-card` já nascerem no tom certo. */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --radius: 12px;
+
+    --background: oklch(0.976 0.006 85);
+    --foreground: oklch(0.34 0.012 262);
+    --card: #ffffff;
+    --card-foreground: oklch(0.34 0.012 262);
+    --popover: #ffffff;
+    --popover-foreground: oklch(0.34 0.012 262);
+    --primary: oklch(0.56 0.052 152);
+    --primary-foreground: #ffffff;
+    --secondary: oklch(0.972 0.005 262);
+    --secondary-foreground: oklch(0.34 0.012 262);
+    --muted: oklch(0.965 0.004 262);
+    --muted-foreground: oklch(0.62 0.008 262);
+    --accent: oklch(0.955 0.018 152);
+    --accent-foreground: oklch(0.38 0.045 152);
+    --destructive: oklch(0.58 0.16 32);
+    --border: oklch(0.925 0.004 262);
+    --input: oklch(0.90 0.005 262);
+    --ring: oklch(0.72 0.040 152);
+
+    /* Série dos gráficos de evolução (Recharts lê via `var(--color-chart-n)`). */
+    --chart-1: oklch(0.56 0.052 152);
+    --chart-2: oklch(0.60 0.145 47);
+    --chart-3: oklch(0.58 0.10 250);
+    --chart-4: oklch(0.55 0.10 155);
+    --chart-5: oklch(0.62 0.008 262);
+
+    --sidebar: #ffffff;
+    --sidebar-foreground: oklch(0.34 0.012 262);
+    --sidebar-primary: oklch(0.56 0.052 152);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: oklch(0.955 0.018 152);
+    --sidebar-accent-foreground: oklch(0.38 0.045 152);
+    --sidebar-border: oklch(0.925 0.004 262);
+    --sidebar-ring: oklch(0.72 0.040 152);
 }
 
 .dark {
+    --radius: 12px;
+
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
+    --primary: oklch(0.72 0.052 152);
     --primary-foreground: oklch(0.205 0 0);
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
@@ -102,15 +242,15 @@
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --chart-1: oklch(0.72 0.052 152);
+    --chart-2: oklch(0.70 0.145 47);
+    --chart-3: oklch(0.68 0.10 250);
+    --chart-4: oklch(0.68 0.10 155);
+    --chart-5: oklch(0.708 0 0);
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.72 0.052 152);
+    --sidebar-primary-foreground: oklch(0.205 0 0);
     --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
@@ -128,3 +268,4 @@
     @apply font-sans;
     }
 }
+
